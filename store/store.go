@@ -1,4 +1,4 @@
-package lockbox
+package store
 
 import "errors"
 
