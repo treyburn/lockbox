@@ -17,6 +17,16 @@ func TestPut(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Len(t, store, 1)
 	assert.Equal(t, store["foo"], "bar")
+
+	err = Put("foo", "baz")
+	assert.NoError(t, err)
+	assert.Len(t, store, 1)
+	assert.Equal(t, store["foo"], "baz")
+
+	err = Put("baz", "bing")
+	assert.NoError(t, err)
+	assert.Len(t, store, 2)
+	assert.Equal(t, store["baz"], "bing")
 }
 
 func TestGet(t *testing.T) {
