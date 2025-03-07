@@ -1,5 +1,7 @@
 package store
 
+var _ Store = (*InMemoryStore)(nil)
+
 func NewInMemoryStore(opts ...InMemoryOption) *InMemoryStore {
 	store := &InMemoryStore{
 		store: make(map[string]string),
