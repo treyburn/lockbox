@@ -1,64 +1,101 @@
-package store
+package store_test
 
 import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/treyburn/lockbox/store"
 )
 
 func TestPut(t *testing.T) {
-	store := NewInMemoryStore()
-	require.Empty(t, store.store)
+	testStorage := make(map[string]string)
+	s := store.NewInMemoryStore(store.WithStorage(testStorage))
+	require.Empty(t, testStorage)
 
-	err := store.Put("foo", "bar")
+	err := s.Put("foo", "bar")
 	assert.NoError(t, err)
-	assert.Len(t, store, 1)
-	assert.Equal(t, store.store["foo"], "bar")
+	assert.Len(t, testStorage, 1)
+	assert.Equal(t, testStorage["foo"], "bar")
 
-	err = store.Put("foo", "baz")
+	err = s.Put("foo", "baz")
 	assert.NoError(t, err)
-	assert.Len(t, store, 1)
-	assert.Equal(t, store.store["foo"], "baz")
+	assert.Len(t, testStorage, 1)
+	assert.Equal(t, testStorage["foo"], "baz")
 
-	err = store.Put("baz", "bing")
+	err = s.Put("baz", "bing")
 	assert.NoError(t, err)
-	assert.Len(t, store, 2)
-	assert.Equal(t, store.store["baz"], "bing")
+	assert.Len(t, testStorage, 2)
+	assert.Equal(t, testStorage["baz"], "bing")
 }
 
 func TestGet(t *testing.T) {
-	store := NewInMemoryStore()
-	require.Empty(t, store.store)
+	testStorage := make(map[string]string)
+	s := store.NewInMemoryStore(store.WithStorage(testStorage))
+	require.Empty(t, testStorage)
 
-	err := store.Put("foo", "bar")
+	err := s.Put("foo", "bar")
 	require.NoError(t, err)
-	err = store.Put("bar", "baz")
+	err = s.Put("bar", "baz")
 	require.NoError(t, err)
-	require.Len(t, store, 2)
+	require.Len(t, testStorage, 2)
 
-	got, err := store.Get("foo")
+	got, err := s.Get("foo")
 	assert.NoError(t, err)
 	assert.Equal(t, "bar", got)
 
-	got, err = store.Get("baz")
-	assert.ErrorIs(t, ErrNotFound, err)
+	got, err = s.Get("baz")
+	assert.ErrorIs(t, store.ErrNotFound, err)
 	assert.Empty(t, got)
 }
 
 func TestDelete(t *testing.T) {
-	store := NewInMemoryStore()
-	require.Empty(t, store.store)
+	testStorage := make(map[string]string)
+	s := store.NewInMemoryStore(store.WithStorage(testStorage))
+	require.Empty(t, testStorage)
 
-	err := store.Put("foo", "bar")
+	err := s.Put("foo", "bar")
 	require.NoError(t, err)
-	require.Len(t, store, 1)
+	require.Len(t, testStorage, 1)
 
-	err = store.Delete("bar")
+	err = s.Delete("bar")
 	assert.NoError(t, err)
-	assert.Len(t, store, 1)
+	assert.Len(t, testStorage, 1)
 
-	err = store.Delete("foo")
+	err = s.Delete("foo")
 	assert.NoError(t, err)
-	assert.Len(t, store, 0)
+	assert.Len(t, testStorage, 0)
+}
+
+func TestNewInMemoryStore(t *testing.T) {
+	s := store.NewInMemoryStore()
+
+	got, err := s.Get("foo")
+	assert.ErrorIs(t, store.ErrNotFound, err)
+	assert.Empty(t, got)
+
+	err = s.Put("foo", "bar")
+	assert.NoError(t, err)
+
+	got, err = s.Get("foo")
+	assert.NoError(t, err)
+	assert.Equal(t, "bar", got)
+
+	err = s.Delete("foo")
+	assert.NoError(t, err)
+
+	got, err = s.Get("foo")
+	assert.ErrorIs(t, store.ErrNotFound, err)
+	assert.Empty(t, got)
+}
+
+func TestWithStorage(t *testing.T) {
+	testStorage := make(map[string]string)
+	testStorage["foo"] = "bar"
+	s := store.NewInMemoryStore(store.WithStorage(testStorage))
+
+	got, err := s.Get("foo")
+	assert.NoError(t, err)
+	assert.Equal(t, "bar", got)
 }
