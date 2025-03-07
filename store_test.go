@@ -37,16 +37,17 @@ func TestGet(t *testing.T) {
 
 	err := Put("foo", "bar")
 	require.NoError(t, err)
+	err = Put("bar", "baz")
+	require.NoError(t, err)
+	require.Len(t, store, 2)
 
 	got, err := Get("foo")
 	assert.NoError(t, err)
 	assert.Equal(t, "bar", got)
 
-	got, err = Get("bar")
+	got, err = Get("baz")
 	assert.ErrorIs(t, ErrNotFound, err)
 	assert.Empty(t, got)
-
-	assert.Len(t, store, 1)
 }
 
 func TestDelete(t *testing.T) {
