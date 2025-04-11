@@ -1,7 +1,10 @@
 package store_test
 
 import (
+	"fmt"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -98,4 +101,59 @@ func TestWithStorage(t *testing.T) {
 	got, err := s.Get("foo")
 	assert.NoError(t, err)
 	assert.Equal(t, "bar", got)
+}
+
+// this test must be run with 'go test -race'
+func TestInMemoryStore_Concurrency(t *testing.T) {
+	const (
+		numGoroutines = 5
+		numOperations = 10
+		testKey       = "test-key"
+	)
+
+	s := store.NewInMemoryStore()
+
+	// Start  holds goroutines until released
+	var start sync.WaitGroup
+	start.Add(1)
+
+	var completed sync.WaitGroup
+	completed.Add(numGoroutines)
+
+	for i := 0; i < numGoroutines; i++ {
+		go func(routineID int) {
+			defer completed.Done()
+
+			// Wait for start
+			start.Wait()
+
+			for j := 0; j < numOperations; j++ {
+				switch j % 3 {
+				case 0:
+					got, err := s.Get(testKey)
+					if err != nil {
+						assert.ErrorIs(t, store.ErrNotFound, err)
+					} else {
+						assert.NotEmpty(t, got)
+					}
+				case 1:
+					err := s.Put(testKey, fmt.Sprintf("%v-%v", routineID, j))
+					assert.NoError(t, err)
+				case 2:
+					err := s.Delete(testKey)
+					assert.NoError(t, err)
+				}
+			}
+		}(i)
+	}
+
+	// Give goroutines time to all reach the block
+	time.Sleep(100 * time.Millisecond)
+
+	// Release all goroutines at once
+	start.Done()
+
+	// Wait for all goroutines to complete
+	completed.Wait()
+
 }
