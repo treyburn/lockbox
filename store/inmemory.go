@@ -1,5 +1,7 @@
 package store
 
+import "sync"
+
 var _ Store = (*InMemoryStore)(nil)
 
 func NewInMemoryStore(opts ...InMemoryOption) *InMemoryStore {
@@ -15,15 +17,20 @@ func NewInMemoryStore(opts ...InMemoryOption) *InMemoryStore {
 }
 
 type InMemoryStore struct {
+	rw    sync.RWMutex
 	store map[string]string
 }
 
 func (s *InMemoryStore) Put(key, value string) error {
+	s.rw.Lock()
+	defer s.rw.Unlock()
 	s.store[key] = value
 	return nil
 }
 
 func (s *InMemoryStore) Get(key string) (string, error) {
+	s.rw.RLock()
+	defer s.rw.RUnlock()
 	value, ok := s.store[key]
 	if !ok {
 		return "", ErrNotFound
@@ -33,6 +40,8 @@ func (s *InMemoryStore) Get(key string) (string, error) {
 }
 
 func (s *InMemoryStore) Delete(key string) error {
+	s.rw.Lock()
+	defer s.rw.Unlock()
 	delete(s.store, key)
 	return nil
 }
