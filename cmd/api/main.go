@@ -13,10 +13,11 @@ import (
 )
 
 func initializeLogger(cache store.Store) (store.TransactionLog, error) {
-	logger, err := store.NewTransactionLog("transaction.log")
+	file, err := os.OpenFile("transaction.log", os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
 	if err != nil {
-		return nil, fmt.Errorf("error creating transaction logger: %w", err)
+		return nil, fmt.Errorf("error opening transaction log file: %w", err)
 	}
+	logger := store.NewTransactionLog(file)
 
 	events, errs := logger.ReadEvents()
 
