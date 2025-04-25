@@ -12,14 +12,16 @@ import (
 	"github.com/treyburn/lockbox/store"
 )
 
-func NewService(storage store.Store) *Service {
+func NewService(storage store.Store, logger store.TransactionLog) *Service {
 	return &Service{
 		storage: storage,
+		logger:  logger,
 	}
 }
 
 type Service struct {
 	storage store.Store
+	logger  store.TransactionLog
 }
 
 func (s *Service) GetByKey(w http.ResponseWriter, r *http.Request) {
@@ -48,7 +50,12 @@ func (s *Service) GetByKey(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Service) PutForKey(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
+	defer func() {
+		err := r.Body.Close()
+		if err != nil {
+			slog.Error(fmt.Sprintf("failed to close request body: %v", err))
+		}
+	}()
 	vars := mux.Vars(r)
 	key := vars["key"]
 
@@ -66,6 +73,8 @@ func (s *Service) PutForKey(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.logger.WritePut(key, string(value))
+
 	w.WriteHeader(http.StatusCreated)
 	slog.Debug(fmt.Sprintf("stored key: %v", key))
 }
@@ -80,6 +89,8 @@ func (s *Service) DeleteKey(w http.ResponseWriter, r *http.Request) {
 		slog.Error(fmt.Sprintf("failed to delete key: %v", err))
 		return
 	}
+
+	s.logger.WriteDelete(key)
 
 	w.WriteHeader(http.StatusOK)
 	slog.Debug(fmt.Sprintf("deleted key: %v", key))
