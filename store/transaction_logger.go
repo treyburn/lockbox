@@ -3,7 +3,7 @@ package store
 import (
 	"bufio"
 	"fmt"
-	"os"
+	"io"
 )
 
 type TransactionLog interface {
@@ -15,19 +15,15 @@ type TransactionLog interface {
 	ReadEvents() (<-chan Event, <-chan error)
 }
 
-func NewTransactionLog(filename string) (TransactionLog, error) {
-	file, err := os.OpenFile(filename, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
-	if err != nil {
-		return nil, err
-	}
-	return &FileTransactionLogger{file: file}, nil
+func NewTransactionLog(fileHandle io.ReadWriteCloser) TransactionLog {
+	return &FileTransactionLogger{file: fileHandle}
 }
 
 type FileTransactionLogger struct {
 	events       chan<- Event
 	errors       <-chan error
 	lastSequence uint64
-	file         *os.File
+	file         io.ReadWriteCloser
 }
 
 func (l *FileTransactionLogger) WritePut(key, value string) {
