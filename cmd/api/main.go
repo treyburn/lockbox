@@ -26,6 +26,9 @@ func initializeLogger(cache store.Store) (store.TransactionLog, error) {
 		Password: os.Getenv("POSTGRES_PASSWORD"),
 		Database: os.Getenv("POSTGRES_DATABASE"),
 	})
+	if err != nil {
+		return nil, fmt.Errorf("error opening postgres transaction log: %w", err)
+	}
 
 	events, errs := logger.ReadEvents()
 
