@@ -16,7 +16,7 @@ func TestService_GetByKey(t *testing.T) {
 	t.Run("found key", func(t *testing.T) {
 		internalStore := map[string]string{"some-key": "some-value"}
 		cache := store.NewInMemoryStore(store.WithStorage(internalStore))
-		svc := NewService(cache)
+		svc := NewService(cache, nil)
 
 		response := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodGet, "/v1/some-key", nil)
@@ -30,7 +30,7 @@ func TestService_GetByKey(t *testing.T) {
 	t.Run("not found key", func(t *testing.T) {
 		internalStore := map[string]string{"some-key": "some-value"}
 		cache := store.NewInMemoryStore(store.WithStorage(internalStore))
-		svc := NewService(cache)
+		svc := NewService(cache, nil)
 
 		response := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodGet, "/v1/some-other-key", nil)
@@ -46,7 +46,7 @@ func TestService_PutForKey(t *testing.T) {
 	t.Run("new key", func(t *testing.T) {
 		internalStore := map[string]string{}
 		cache := store.NewInMemoryStore(store.WithStorage(internalStore))
-		svc := NewService(cache)
+		svc := NewService(cache, nil)
 
 		response := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodPut, "/v1/some-key", strings.NewReader("some-value"))
@@ -61,7 +61,7 @@ func TestService_PutForKey(t *testing.T) {
 	t.Run("existing key", func(t *testing.T) {
 		internalStore := map[string]string{"some-key": "some-existing-value"}
 		cache := store.NewInMemoryStore(store.WithStorage(internalStore))
-		svc := NewService(cache)
+		svc := NewService(cache, nil)
 
 		response := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodPut, "/v1/some-key", strings.NewReader("some-new-value"))
@@ -78,7 +78,7 @@ func TestService_DeleteForKey(t *testing.T) {
 	t.Run("existing key", func(t *testing.T) {
 		internalStore := map[string]string{"some-key": "some-existing-value"}
 		cache := store.NewInMemoryStore(store.WithStorage(internalStore))
-		svc := NewService(cache)
+		svc := NewService(cache, nil)
 
 		response := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodDelete, "/v1/some-key", nil)
@@ -92,7 +92,7 @@ func TestService_DeleteForKey(t *testing.T) {
 	t.Run("no error on non-existing key", func(t *testing.T) {
 		internalStore := map[string]string{}
 		cache := store.NewInMemoryStore(store.WithStorage(internalStore))
-		svc := NewService(cache)
+		svc := NewService(cache, nil)
 
 		response := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodDelete, "/v1/some-key", nil)
