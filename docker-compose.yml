@@ -1,0 +1,115 @@
+services:
+  # our KVS service
+  api:
+    build:
+      context: .
+      dockerfile: build/Dockerfile
+      target: base
+    deploy:
+      mode: replicated
+      replicas: 3
+    expose:
+      - "8080"
+    environment:
+      - TX_LOGGER_KIND=file
+    volumes:
+      # Mount only the Go code into src
+      - ./go.mod:/src/go.mod:delegated
+      - ./go.sum:/src/go.sum:delegated
+      - ./cmd:/src/cmd:delegated
+      - ./service:/src/service:delegated
+      - ./store:/src/store:delegated
+      # go cache for compiling
+      - go-mod-cache:/go/pkg/mod/cache
+      - go-build-cache:/root/.cache
+      # share file transaction log between replicas
+      - sync:/var/log
+    depends_on:
+      traefik:
+        condition: service_healthy
+      create-log:
+        condition: service_completed_successfully
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.api.rule=Host(`localhost`)"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.tls=true"
+      - "traefik.http.services.api.loadbalancer.server.port=8080"
+
+  # create certificates at service startup
+  cert-generator:
+    image: alpine:latest
+    volumes:
+      - certs:/certs
+    command: |
+      sh -c '
+        if [ ! -f /certs/cert.pem ] || [ ! -f /certs/key.pem ]; then
+          echo "Generating SSL certificates..."
+          apk add --no-cache openssl
+          openssl req -x509 -newkey rsa:4096 \
+            -keyout /certs/key.pem \
+            -out /certs/cert.pem \
+            -days 365 -nodes \
+            -subj "/CN=localhost/O=MyOrg/C=US"
+          chmod 644 /certs/cert.pem
+          chmod 600 /certs/key.pem
+          echo "Certificates generated successfully"
+        else
+          echo "Certificates already exist, skipping generation"
+        fi
+      '
+
+  # create a transaction log file at service startup
+  create-log:
+    image: alpine:latest
+    volumes:
+      - sync:/var/log
+    command: |
+      sh -c '
+        if [ ! -f /var/log/transaction.log ]; then
+          echo "creating log"
+          touch /var/log/transaction.log
+        else
+          echo "transaction log already exists"
+        fi
+      '
+
+  # load balancing and TLS termination
+  traefik:
+    image: traefik:v3.4.1
+    ports:
+      - "80:80" # Add HTTP for redirects to HTTPS
+      - "443:443"
+      - "8080:8080"
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--providers.file.watch=true"
+      # Redirect HTTP to HTTPS
+      - "--entrypoints.web.http.redirections.entryPoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entryPoint.scheme=https"
+      # health check enabled
+      - "--ping=true"
+    depends_on:
+      cert-generator:
+        condition: service_completed_successfully
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - certs:/certs:ro
+      - ./traefik-config.yml:/etc/traefik/dynamic/traefik-config.yml:ro
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 2s
+      timeout: 1s
+      retries: 5
+
+volumes:
+  go-mod-cache:
+  go-build-cache:
+  certs:  # shared volume for certificates
+  sync: # shared volume for transaction logger file
