@@ -1,4 +1,5 @@
 services:
+  # our KVS service
   api:
     build:
       context: .
@@ -18,8 +19,10 @@ services:
       - ./cmd:/src/cmd:delegated
       - ./service:/src/service:delegated
       - ./store:/src/store:delegated
+      # go cache for compiling
       - go-mod-cache:/go/pkg/mod/cache
       - go-build-cache:/root/.cache
+      # share file transaction log between replicas
       - sync:/var/log
     depends_on:
       traefik:
@@ -33,6 +36,7 @@ services:
       - "traefik.http.routers.api.tls=true"
       - "traefik.http.services.api.loadbalancer.server.port=8080"
 
+  # create certificates at service startup
   cert-generator:
     image: alpine:latest
     volumes:
@@ -55,6 +59,7 @@ services:
         fi
       '
 
+  # create a transaction log file at service startup
   create-log:
     image: alpine:latest
     volumes:
@@ -69,6 +74,7 @@ services:
         fi
       '
 
+  # load balancing and TLS termination
   traefik:
     image: traefik:v3.4.1
     ports:
@@ -105,5 +111,5 @@ services:
 volumes:
   go-mod-cache:
   go-build-cache:
-  certs:  # Shared volume for certificates
-  sync:
+  certs:  # shared volume for certificates
+  sync: # shared volume for transaction logger file
