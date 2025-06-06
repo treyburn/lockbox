@@ -13,22 +13,23 @@ import (
 )
 
 func initializeLogger(cache store.Store) (store.TransactionLog, error) {
-	//file, err := os.OpenFile("transaction.log", os.O_RDWR|os.O_APPEND|os.O_CREATE, 0755)
-	//if err != nil {
-	//	return nil, fmt.Errorf("error opening transaction log file: %w", err)
-	//}
-	//logger := store.NewTransactionLog(file)
-
-	logger, err := store.NewPostgresTransactionLogger(store.PostgresDBParams{
-		Host:     os.Getenv("POSTGRES_HOST"),
-		Port:     5432,
-		User:     os.Getenv("POSTGRES_USER"),
-		Password: os.Getenv("POSTGRES_PASSWORD"),
-		Database: os.Getenv("POSTGRES_DATABASE"),
-	})
+	file, err := os.OpenFile("/var/log/transaction.log", os.O_RDWR|os.O_APPEND, 0755)
 	if err != nil {
-		return nil, fmt.Errorf("error opening postgres transaction log: %w", err)
+		return nil, fmt.Errorf("error opening transaction log file: %w", err)
 	}
+	logger := store.NewTransactionLog(file)
+
+	// db backed logger setup
+	//logger, err := store.NewPostgresTransactionLogger(store.PostgresDBParams{
+	//	Host:     os.Getenv("POSTGRES_HOST"),
+	//	Port:     5432,
+	//	User:     os.Getenv("POSTGRES_USER"),
+	//	Password: os.Getenv("POSTGRES_PASSWORD"),
+	//	Database: os.Getenv("POSTGRES_DATABASE"),
+	//})
+	//if err != nil {
+	//	return nil, fmt.Errorf("error opening postgres transaction log: %w", err)
+	//}
 
 	events, errs := logger.ReadEvents()
 
@@ -36,7 +37,11 @@ func initializeLogger(cache store.Store) (store.TransactionLog, error) {
 	for ok && err == nil {
 		select {
 		case e, ok = <-events:
-			slog.Debug(fmt.Sprintf("event: %v", e.Kind))
+			if !ok {
+				// channel was closed
+				break
+			}
+			slog.Debug(fmt.Sprintf("event: %+v", e))
 			switch e.Kind {
 			case store.EventPut:
 				err = cache.Put(e.Key, e.Value)
@@ -46,6 +51,10 @@ func initializeLogger(cache store.Store) (store.TransactionLog, error) {
 				err = fmt.Errorf("unknown event kind: %d", e.Kind)
 			}
 		case err, ok = <-errs:
+			if !ok {
+				// channel was closed
+				break
+			}
 			slog.Error(fmt.Sprintf("error reading events: %v", err))
 		}
 	}
@@ -75,6 +84,11 @@ func main() {
 	r.HandleFunc("/v1/{key}", svc.PutForKey).Methods(http.MethodPut)
 	r.HandleFunc("/v1/{key}", svc.GetByKey).Methods(http.MethodGet)
 	r.HandleFunc("/v1/{key}", svc.DeleteKey).Methods(http.MethodDelete)
+
+	// example for handling https directly
+	//const cert = "/etc/ssl/certs/app/cert.pem"
+	//const key = "/etc/ssl/certs/app/key.pem"
+	//err = http.ListenAndServeTLS(":8080", cert, key, r)
 
 	err = http.ListenAndServe(":8080", r)
 	if err != nil {
