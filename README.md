@@ -45,7 +45,7 @@ Various items for cleanup.
 - [ ] Bring in Just for encapsulating typical project commands
 
 ### Service
-- [ ] Update Go + Deps
+- [x] Update Go + Deps
 - [ ] Utilize multi-stage docker build
 - [ ] Swap over to Postgres by default
 - [ ] Add in 
