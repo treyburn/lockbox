@@ -52,11 +52,14 @@ Various items for cleanup.
 - [ ] Improve testing
 - [ ] Refactor to use standard Go project layouts
 - [ ] Drop gorilla/mux for chi
+- [ ] Drop lib/pq for pgx
+- [ ] Improve logging and utilize context logging
 - [ ] Swap over to sqlc instead of raw SQL
 - [ ] Create an OpenAPI specification w/ validation
 - [ ] Add a gRPC API
 - [ ] Instrument for OpenTelemetry
-  - [ ] Utilize decorator pattern 
+  - [ ] Utilize decorator patterns
+  - [ ] Utilize telemetry middleware
 
 ### Deployment
 - [ ] Generate a valid cert via LetsEncrypt
