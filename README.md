@@ -51,18 +51,21 @@ Various items for cleanup.
 - [ ] Add in 
 - [ ] Improve testing
 - [ ] Refactor to use standard Go project layouts
-- [ ] Drop gorilla/mux for chi
-- [ ] Drop lib/pq for pgx
+- [ ] Drop gorilla/mux for chi (https://github.com/go-chi/chi)
+- [ ] Drop lib/pq for pgx (https://github.com/jackc/pgx)
 - [ ] Improve logging and utilize context logging
-- [ ] Swap over to sqlc instead of raw SQL
+- [ ] Swap over to sqlc instead of raw SQL (https://github.com/sqlc-dev/sqlc)
 - [ ] Create an OpenAPI specification w/ validation
+  - [ ] Use codegen tooling to create your Chi router and service (https://github.com/oapi-codegen/oapi-codegen)
 - [ ] Add a gRPC API
 - [ ] Instrument for OpenTelemetry
   - [ ] Utilize decorator patterns
   - [ ] Utilize telemetry middleware
+- [ ] Add healthz endpoints for service health checking
 
 ### Deployment
 - [ ] Generate a valid cert via LetsEncrypt
 - [ ] Utilize mtls termination between traefik and api services
 - [ ] Enable SSL with Postgres
 - [ ] Set up OpenTelemetry collectors + Grafana
+- [ ] Utilize healthcheck endpoints
