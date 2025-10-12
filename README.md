@@ -41,6 +41,7 @@ Various items for cleanup.
   - [ ] Linting w/ golangci-lint
   - [ ] Testing
   - [ ] Report test coverage in PR and on project README
+  - [ ] Build docker container
 - [ ] Bring in Just for encapsulating typical project commands
 
 ### Service
