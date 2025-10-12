@@ -41,19 +41,25 @@ Various items for cleanup.
   - [ ] Linting w/ golangci-lint
   - [ ] Testing
   - [ ] Report test coverage in PR and on project README
+  - [ ] Build docker container
 - [ ] Bring in Just for encapsulating typical project commands
 
 ### Service
+- [x] Update Go + Deps
+- [ ] Utilize multi-stage docker build
 - [ ] Swap over to Postgres by default
 - [ ] Add in 
 - [ ] Improve testing
 - [ ] Refactor to use standard Go project layouts
 - [ ] Drop gorilla/mux for chi
+- [ ] Drop lib/pq for pgx
+- [ ] Improve logging and utilize context logging
 - [ ] Swap over to sqlc instead of raw SQL
 - [ ] Create an OpenAPI specification w/ validation
 - [ ] Add a gRPC API
 - [ ] Instrument for OpenTelemetry
-  - [ ] Utilize decorator pattern 
+  - [ ] Utilize decorator patterns
+  - [ ] Utilize telemetry middleware
 
 ### Deployment
 - [ ] Generate a valid cert via LetsEncrypt

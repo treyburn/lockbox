@@ -1,4 +1,4 @@
-FROM golang:1.24.4-alpine AS base
+FROM golang:1.25.1-alpine AS base
 
 # Install go dependencies
 WORKDIR /src
