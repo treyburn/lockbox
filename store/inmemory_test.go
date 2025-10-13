@@ -155,5 +155,4 @@ func TestInMemoryStore_Concurrency(t *testing.T) {
 
 	// Wait for all goroutines to complete
 	completed.Wait()
-
 }

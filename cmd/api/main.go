@@ -13,7 +13,7 @@ import (
 )
 
 func initializeLogger(cache store.Store) (store.TransactionLog, error) {
-	file, err := os.OpenFile("/var/log/transaction.log", os.O_RDWR|os.O_APPEND, 0755)
+	file, err := os.OpenFile("/var/log/transaction.log", os.O_RDWR|os.O_APPEND, 0o755)
 	if err != nil {
 		return nil, fmt.Errorf("error opening transaction log file: %w", err)
 	}
@@ -86,9 +86,9 @@ func main() {
 	r.HandleFunc("/v1/{key}", svc.DeleteKey).Methods(http.MethodDelete)
 
 	// example for handling https directly
-	//const cert = "/etc/ssl/certs/app/cert.pem"
-	//const key = "/etc/ssl/certs/app/key.pem"
-	//err = http.ListenAndServeTLS(":8080", cert, key, r)
+	// const cert = "/etc/ssl/certs/app/cert.pem"
+	// const key = "/etc/ssl/certs/app/key.pem"
+	// err = http.ListenAndServeTLS(":8080", cert, key, r)
 
 	err = http.ListenAndServe(":8080", r)
 	if err != nil {

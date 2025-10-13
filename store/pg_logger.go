@@ -76,13 +76,11 @@ func (p *PostgresTransactionLogger) Run() {
 		for e := range events {
 
 			_, err := p.db.Exec(insertQuery, e.Kind, e.Key, e.Value)
-
 			if err != nil {
 				errs <- fmt.Errorf("failed to write transaction: %w", err)
 			}
 		}
 	}()
-
 }
 
 func (p *PostgresTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
