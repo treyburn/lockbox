@@ -20,7 +20,7 @@ func initializeLogger(cache store.Store) (logger.TransactionLog, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error opening transaction log file: %w", err)
 	}
-	log := logger.NewTransactionLog(file)
+	log := logger.NewFileTransactionLogger(file)
 
 	// db backed logger setup
 	// logger, err := store.NewPostgresTransactionLogger(store.PostgresDBParams{

@@ -9,7 +9,7 @@ import (
 // compile time assertion that FileTransactionLogger is a TransactionLog
 var _ TransactionLog = (*FileTransactionLogger)(nil)
 
-func NewTransactionLog(fileHandle io.ReadWriteCloser) TransactionLog {
+func NewFileTransactionLogger(fileHandle io.ReadWriteCloser) *FileTransactionLogger {
 	return &FileTransactionLogger{file: fileHandle}
 }
 
