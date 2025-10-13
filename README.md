@@ -29,6 +29,50 @@ curl -X DELETE https://localhost:443/v1/abc --insecure
 
 ## Setup
 
+Below will contain the required tooling and common commands for developing on this codebase.
+
+### Prerequisites
+1. Install the [Go toolchain](https://go.dev/doc/install) with a version of at least the value specified in the [go.mod](./go.mod).
+2. Install docker engine and docker compose. The easiest way to handle this is via [docker desktop](https://docs.docker.com/desktop/).
+3. Install [golangci-lint](https://golangci-lint.run/docs/welcome/install/) for local linting and formatting.
+
+### Common commands
+Use the following to run tests:
+```sh
+go test -race ./...
+```
+
+Use the following for code formatting:
+```sh
+golangci-lint fmt
+```
+
+Use the following for code linting:
+```sh
+golangci-lint run
+```
+
+### Local dev delopyments
+Build containers by running:
+```sh
+docker compose build
+```
+
+Pull down updated containers with:
+```sh
+docker compose pull
+```
+
+Stand up the development deployment with:
+```sh
+docker compose up -d api
+```
+
+Tear down the docker environment with:
+```sh
+docker compose down
+```
+
 ## TODO
 Various items for cleanup.
 
@@ -38,7 +82,7 @@ Various items for cleanup.
   - [ ] Provide a thorough project description
   - [ ] Provide useful code snippets for cli execution
   - [ ] Document the API(s)
-  - [ ] Document prerequisites and general dev setup
+  - [x] Document prerequisites and general dev setup
 - [X] Set up CI
   - [X] Linting w/ golangci-lint
   - [x] Testing
@@ -49,9 +93,11 @@ Various items for cleanup.
 ### Service
 - [x] Update Go + Deps
 - [ ] Utilize multi-stage docker build
-- [ ] Swap over to Postgres by default
-- [ ] Add in 
-- [ ] Improve testing
+- [ ] Swap over to Postgres logger by default
+- [ ] Restructure main for better configurability
+  - [ ] Add in env var/cli configuration setting
+  - [ ] Reconsider defaults
+- [ ] Improve unit and integration testing
 - [ ] Refactor to use standard Go project layouts
 - [ ] Drop gorilla/mux for chi (https://github.com/go-chi/chi)
 - [ ] Drop lib/pq for pgx (https://github.com/jackc/pgx)
