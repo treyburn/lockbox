@@ -120,14 +120,14 @@ func TestInMemoryStore_Concurrency(t *testing.T) {
 	var completed sync.WaitGroup
 	completed.Add(numGoroutines)
 
-	for i := 0; i < numGoroutines; i++ {
+	for i := range numGoroutines {
 		go func(routineID int) {
 			defer completed.Done()
 
 			// Wait for start
 			start.Wait()
 
-			for j := 0; j < numOperations; j++ {
+			for j := range numOperations {
 				switch j % 3 {
 				case 0:
 					got, err := s.Get(testKey)
@@ -155,5 +155,4 @@ func TestInMemoryStore_Concurrency(t *testing.T) {
 
 	// Wait for all goroutines to complete
 	completed.Wait()
-
 }

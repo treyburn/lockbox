@@ -3,6 +3,7 @@ package store
 import (
 	"database/sql"
 	"fmt"
+	"log/slog"
 
 	_ "github.com/lib/pq"
 )
@@ -75,13 +76,11 @@ func (p *PostgresTransactionLogger) Run() {
 		for e := range events {
 
 			_, err := p.db.Exec(insertQuery, e.Kind, e.Key, e.Value)
-
 			if err != nil {
 				errs <- fmt.Errorf("failed to write transaction: %w", err)
 			}
 		}
 	}()
-
 }
 
 func (p *PostgresTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
@@ -100,7 +99,12 @@ func (p *PostgresTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 			outErr <- fmt.Errorf("failed to read transactions: %w", err)
 			return
 		}
-		defer rows.Close()
+		defer func() {
+			closeErr := rows.Close()
+			if closeErr != nil {
+				slog.Warn("failed to close db row", slog.String("error", closeErr.Error()))
+			}
+		}()
 		e := Event{}
 		for rows.Next() {
 			err = rows.Scan(&e.Sequence, &e.Kind, &e.Key, &e.Value)
@@ -125,13 +129,21 @@ func (p *PostgresTransactionLogger) verifyTableExists() (bool, error) {
 	var result string
 
 	rows, err := p.db.Query(fmt.Sprintf("SELECT to_regclass('public.%s');", table))
-	defer rows.Close()
+	defer func() {
+		closeErr := rows.Close()
+		if closeErr != nil {
+			slog.Warn("failed to close db row", slog.String("error", closeErr.Error()))
+		}
+	}()
 	if err != nil {
 		return false, err
 	}
 
 	for rows.Next() && result != table {
-		rows.Scan(&result)
+		err = rows.Scan(&result)
+		if err != nil {
+			return false, err
+		}
 	}
 
 	return result == table, rows.Err()

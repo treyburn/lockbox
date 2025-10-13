@@ -2,9 +2,7 @@ package store
 
 import "errors"
 
-var (
-	ErrNotFound = errors.New("key not found")
-)
+var ErrNotFound = errors.New("key not found")
 
 type Store interface {
 	Put(key, value string) error

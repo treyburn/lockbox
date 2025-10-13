@@ -12,24 +12,26 @@ import (
 	"github.com/treyburn/lockbox/store"
 )
 
+//nolint:cyclop
 func initializeLogger(cache store.Store) (store.TransactionLog, error) {
-	file, err := os.OpenFile("/var/log/transaction.log", os.O_RDWR|os.O_APPEND, 0755)
+	// TODO - I believe this needs to be 0755 in order for the file to be shared between copies?
+	file, err := os.OpenFile("/var/log/transaction.log", os.O_RDWR|os.O_APPEND, 0o755) //nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("error opening transaction log file: %w", err)
 	}
 	logger := store.NewTransactionLog(file)
 
 	// db backed logger setup
-	//logger, err := store.NewPostgresTransactionLogger(store.PostgresDBParams{
-	//	Host:     os.Getenv("POSTGRES_HOST"),
-	//	Port:     5432,
-	//	User:     os.Getenv("POSTGRES_USER"),
-	//	Password: os.Getenv("POSTGRES_PASSWORD"),
-	//	Database: os.Getenv("POSTGRES_DATABASE"),
-	//})
-	//if err != nil {
-	//	return nil, fmt.Errorf("error opening postgres transaction log: %w", err)
-	//}
+	// logger, err := store.NewPostgresTransactionLogger(store.PostgresDBParams{
+	// 	Host:     os.Getenv("POSTGRES_HOST"),
+	// 	Port:     5432,
+	// 	User:     os.Getenv("POSTGRES_USER"),
+	// 	Password: os.Getenv("POSTGRES_PASSWORD"),
+	// 	Database: os.Getenv("POSTGRES_DATABASE"),
+	// })
+	// if err != nil {
+	// 	return nil, fmt.Errorf("error opening postgres transaction log: %w", err)
+	// }
 
 	events, errs := logger.ReadEvents()
 
@@ -86,11 +88,12 @@ func main() {
 	r.HandleFunc("/v1/{key}", svc.DeleteKey).Methods(http.MethodDelete)
 
 	// example for handling https directly
-	//const cert = "/etc/ssl/certs/app/cert.pem"
-	//const key = "/etc/ssl/certs/app/key.pem"
-	//err = http.ListenAndServeTLS(":8080", cert, key, r)
+	// const cert = "/etc/ssl/certs/app/cert.pem"
+	// const key = "/etc/ssl/certs/app/key.pem"
+	// err = http.ListenAndServeTLS(":8080", cert, key, r)
 
-	err = http.ListenAndServe(":8080", r)
+	// TODO - need to enable a sane default timeout
+	err = http.ListenAndServe(":8080", r) //nolint:gosec
 	if err != nil {
 		slog.Error(fmt.Sprintf("serrver error: %v", err))
 		os.Exit(1)
