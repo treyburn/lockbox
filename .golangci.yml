@@ -50,8 +50,8 @@ formatters:
     gci:
       sections:
         - standard
-        - blank
         - dot
+        - blank
         - default
         - localmodule
       custom-order: true
