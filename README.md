@@ -98,7 +98,7 @@ Various items for cleanup.
   - [ ] Add in env var/cli configuration setting
   - [ ] Reconsider defaults
 - [ ] Improve unit and integration testing
-- [ ] Refactor to use standard Go project layouts
+- [X] Refactor to use standard Go project layouts
 - [ ] Drop gorilla/mux for chi (https://github.com/go-chi/chi)
 - [ ] Drop lib/pq for pgx (https://github.com/jackc/pgx)
 - [ ] Improve logging and utilize context logging
