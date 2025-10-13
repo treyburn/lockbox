@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/treyburn/lockbox/store"
+	"github.com/treyburn/lockbox/internal/pkg/store"
 )
 
 func TestPut(t *testing.T) {
