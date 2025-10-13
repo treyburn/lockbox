@@ -44,6 +44,10 @@ linters:
 formatters:
   enable:
     - gofumpt
+    - goimports
   settings:
     gofumpt:
       module-path: github.com/treyburn/lockbox
+    goimports:
+      local-prefixes:
+        - github.com/treyburn/lockbox
