@@ -1,5 +1,7 @@
 # Lockbox
 
+[![codecov](https://codecov.io/gh/treyburn/lockbox/graph/badge.svg?token=2ALGABLQ80)](https://codecov.io/gh/treyburn/lockbox)
+
 A simple, distributed key-value store.
 
 ## Usage
@@ -37,11 +39,11 @@ Various items for cleanup.
   - [ ] Provide useful code snippets for cli execution
   - [ ] Document the API(s)
   - [ ] Document prerequisites and general dev setup
-- [ ] Set up CI
-  - [ ] Linting w/ golangci-lint
-  - [ ] Testing
-  - [ ] Report test coverage in PR and on project README
-  - [ ] Build docker container
+- [X] Set up CI
+  - [X] Linting w/ golangci-lint
+  - [x] Testing
+  - [X] Report test coverage in PR and on project README
+  - [x] Build docker container
 - [ ] Bring in Just for encapsulating typical project commands
 
 ### Service
