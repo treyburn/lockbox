@@ -9,7 +9,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/treyburn/lockbox/store"
+	"github.com/treyburn/lockbox/internal/pkg/store"
 )
 
 func TestService_GetByKey(t *testing.T) {

@@ -8,8 +8,8 @@ import (
 
 	"github.com/gorilla/mux"
 
-	api "github.com/treyburn/lockbox/service/http"
-	"github.com/treyburn/lockbox/store"
+	api "github.com/treyburn/lockbox/internal/pkg/service/http"
+	"github.com/treyburn/lockbox/internal/pkg/store"
 )
 
 //nolint:cyclop

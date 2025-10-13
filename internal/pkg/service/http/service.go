@@ -9,7 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 
-	"github.com/treyburn/lockbox/store"
+	"github.com/treyburn/lockbox/internal/pkg/store"
 )
 
 func NewService(storage store.Store, logger store.TransactionLog) *Service {

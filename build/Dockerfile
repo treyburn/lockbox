@@ -7,8 +7,7 @@ RUN go mod download
 
 # Install the sources
 COPY ./cmd /src/cmd
-COPY ./service /src/service
-COPY ./store /src/store
+COPY ./internal /src/internal
 
 ENV CGO_ENABLED=0
 
