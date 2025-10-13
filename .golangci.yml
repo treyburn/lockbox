@@ -43,11 +43,21 @@ linters:
 
 formatters:
   enable:
+    - gci
     - gofumpt
     - goimports
   settings:
+    gci:
+      sections:
+        - standard
+        - blank
+        - dot
+        - default
+        - localmodule
+      custom-order: true
     gofumpt:
       module-path: github.com/treyburn/lockbox
+      extra-rules: true
     goimports:
       local-prefixes:
         - github.com/treyburn/lockbox
