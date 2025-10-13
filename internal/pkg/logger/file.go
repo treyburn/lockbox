@@ -6,15 +6,6 @@ import (
 	"io"
 )
 
-type TransactionLog interface {
-	WritePut(key, value string)
-	WriteDelete(key string)
-	Err() <-chan error
-
-	Run()
-	ReadEvents() (<-chan Event, <-chan error)
-}
-
 func NewTransactionLog(fileHandle io.ReadWriteCloser) TransactionLog {
 	return &FileTransactionLogger{file: fileHandle}
 }
