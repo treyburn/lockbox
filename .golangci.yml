@@ -40,6 +40,13 @@ linters:
     - unconvert
   disable:
     - lll
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - gocognit
+          - cyclop
+          - funlen
 
 formatters:
   enable:
