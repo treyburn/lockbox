@@ -93,6 +93,11 @@ func (l *FileTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 	return outEvent, outErr
 }
 
+func (l *FileTransactionLogger) Close() error {
+	close(l.events)
+	return l.file.Close()
+}
+
 type Event struct {
 	Sequence uint64
 	Kind     EventKind

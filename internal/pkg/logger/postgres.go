@@ -164,3 +164,8 @@ func (p *PostgresTransactionLogger) createTable() error {
 
 	return nil
 }
+
+func (p *PostgresTransactionLogger) Close() error {
+	close(p.events)
+	return nil
+}

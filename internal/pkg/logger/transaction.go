@@ -7,4 +7,5 @@ type TransactionLog interface {
 
 	Run()
 	ReadEvents() (<-chan Event, <-chan error)
+	Close() error
 }
