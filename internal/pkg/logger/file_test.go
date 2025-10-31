@@ -6,7 +6,10 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/synctest"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 // mockReadWriteCloser is a mock implementation of an io.ReadWriterCloser for testing
@@ -98,35 +101,41 @@ func TestFileTransactionLogger_Run(t *testing.T) {
 
 // TestFileTransactionLogger_WritePut tests writing PUT events
 func TestFileTransactionLogger_WritePut(t *testing.T) {
-	mock := newMockReadWriteCloser("")
-	logger := NewFileTransactionLogger(mock)
-	logger.Run()
+	synctest.Test(t, func(t *testing.T) {
+		mock := newMockReadWriteCloser("")
+		logger := NewFileTransactionLogger(mock)
+		logger.Run()
 
-	// Give goroutine time to start
-	time.Sleep(10 * time.Millisecond)
+		// Give goroutine time to start
+		time.Sleep(10 * time.Millisecond)
 
-	logger.WritePut("key1", "value1")
-	logger.WritePut("key2", "value2")
+		logger.WritePut("key1", "value1")
+		logger.WritePut("key2", "value2")
 
-	// Give time for writes to complete
-	time.Sleep(50 * time.Millisecond)
+		// Give time for writes to complete
+		time.Sleep(50 * time.Millisecond)
 
-	output := mock.String()
-	expectedLines := []string{
-		"1\t2\tkey1\tvalue1",
-		"2\t2\tkey2\tvalue2",
-	}
-
-	for _, expected := range expectedLines {
-		if !strings.Contains(output, expected) {
-			t.Errorf("Expected output to contain %q, got: %s", expected, output)
+		output := mock.String()
+		expectedLines := []string{
+			"1\t2\tkey1\tvalue1",
+			"2\t2\tkey2\tvalue2",
 		}
-	}
 
-	last := logger.lastSequence.Load()
-	if last != 2 {
-		t.Errorf("Expected lastSequence to be 2, got %d", last)
-	}
+		for _, expected := range expectedLines {
+			if !strings.Contains(output, expected) {
+				t.Errorf("Expected output to contain %q, got: %s", expected, output)
+			}
+		}
+
+		last := logger.lastSequence.Load()
+		if last != 2 {
+			t.Errorf("Expected lastSequence to be 2, got %d", last)
+		}
+
+		err := logger.Close()
+		assert.Nil(t, err)
+		synctest.Wait()
+	})
 }
 
 // TestFileTransactionLogger_WriteDelete tests writing DELETE events
