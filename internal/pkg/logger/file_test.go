@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"fmt"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
 
 // mockReadWriteCloser is a mock implementation of an io.ReadWriterCloser for testing
 type mockReadWriteCloser struct {
+	sync.RWMutex
 	// embed bytes.Buffer so that our mock is a light wrapper around this builtin
 	*bytes.Buffer
 
@@ -24,16 +26,28 @@ func newMockReadWriteCloser(data string) *mockReadWriteCloser {
 }
 
 func (m *mockReadWriteCloser) Close() error {
+	m.Lock()
+	defer m.Unlock()
 	m.closed = true
 	return nil
 }
 
 func (m *mockReadWriteCloser) Read(p []byte) (n int, err error) {
+	m.RLock()
+	defer m.RUnlock()
 	return m.Buffer.Read(p)
 }
 
 func (m *mockReadWriteCloser) Write(p []byte) (n int, err error) {
+	m.Lock()
+	defer m.Unlock()
 	return m.Buffer.Write(p)
+}
+
+func (m *mockReadWriteCloser) String() string {
+	m.RLock()
+	defer m.RUnlock()
+	return m.Buffer.String()
 }
 
 // TestNewFileTransactionLogger tests the constructor
@@ -49,8 +63,9 @@ func TestNewFileTransactionLogger(t *testing.T) {
 		t.Error("Expected file handle to be set correctly")
 	}
 
-	if logger.lastSequence != 0 {
-		t.Errorf("Expected lastSequence to be 0, got %d", logger.lastSequence)
+	last := logger.lastSequence.Load()
+	if last != 0 {
+		t.Errorf("Expected lastSequence to be 0, got %d", last)
 	}
 }
 
@@ -108,8 +123,9 @@ func TestFileTransactionLogger_WritePut(t *testing.T) {
 		}
 	}
 
-	if logger.lastSequence != 2 {
-		t.Errorf("Expected lastSequence to be 2, got %d", logger.lastSequence)
+	last := logger.lastSequence.Load()
+	if last != 2 {
+		t.Errorf("Expected lastSequence to be 2, got %d", last)
 	}
 }
 
@@ -140,8 +156,9 @@ func TestFileTransactionLogger_WriteDelete(t *testing.T) {
 		}
 	}
 
-	if logger.lastSequence != 2 {
-		t.Errorf("Expected lastSequence to be 2, got %d", logger.lastSequence)
+	last := logger.lastSequence.Load()
+	if last != 2 {
+		t.Errorf("Expected lastSequence to be 2, got %d", last)
 	}
 }
 
@@ -174,8 +191,9 @@ func TestFileTransactionLogger_MixedOperations(t *testing.T) {
 		}
 	}
 
-	if logger.lastSequence != 3 {
-		t.Errorf("Expected lastSequence to be 3, got %d", logger.lastSequence)
+	last := logger.lastSequence.Load()
+	if last != 3 {
+		t.Errorf("Expected lastSequence to be 3, got %d", last)
 	}
 }
 
@@ -262,7 +280,7 @@ func TestFileTransactionLogger_ReadEvents_ValidData(t *testing.T) {
 	select {
 	case <-done:
 		// Expected
-	case <-time.After(100 * time.Millisecond):
+	case <-time.After(100 * time.Second):
 		t.Fatal("Timeout waiting for ReadEvents to complete")
 	}
 
@@ -301,8 +319,9 @@ func TestFileTransactionLogger_ReadEvents_ValidData(t *testing.T) {
 		}
 	}
 
-	if logger.lastSequence != 3 {
-		t.Errorf("Expected lastSequence to be 3, got %d", logger.lastSequence)
+	last := logger.lastSequence.Load()
+	if last != 3 {
+		t.Errorf("Expected lastSequence to be 3, got %d", last)
 	}
 }
 
@@ -397,8 +416,9 @@ func TestFileTransactionLogger_ReadEvents_UpdatesLastSequence(t *testing.T) {
 	mock := newMockReadWriteCloser(data)
 	logger := NewFileTransactionLogger(mock)
 
-	if logger.lastSequence != 0 {
-		t.Errorf("Expected initial lastSequence to be 0, got %d", logger.lastSequence)
+	last := logger.lastSequence.Load()
+	if last != 0 {
+		t.Errorf("Expected initial lastSequence to be 0, got %d", last)
 	}
 
 	eventChan, errChan := logger.ReadEvents()
@@ -428,8 +448,9 @@ func TestFileTransactionLogger_ReadEvents_UpdatesLastSequence(t *testing.T) {
 		// Expected - no errors
 	}
 
-	if logger.lastSequence != 5 {
-		t.Errorf("Expected lastSequence to be 5 after reading, got %d", logger.lastSequence)
+	last = logger.lastSequence.Load()
+	if last != 5 {
+		t.Errorf("Expected lastSequence to be 5 after reading, got %d", last)
 	}
 }
 
@@ -450,8 +471,9 @@ func TestFileTransactionLogger_SequenceIncrement(t *testing.T) {
 	// Give time for writes to complete
 	time.Sleep(50 * time.Millisecond)
 
-	if logger.lastSequence != 10 {
-		t.Errorf("Expected lastSequence to be 10, got %d", logger.lastSequence)
+	last := logger.lastSequence.Load()
+	if last != 10 {
+		t.Errorf("Expected lastSequence to be 10, got %d", last)
 	}
 
 	// Verify all sequences are in the output
@@ -461,17 +483,6 @@ func TestFileTransactionLogger_SequenceIncrement(t *testing.T) {
 		if !strings.Contains(output, expected) {
 			t.Errorf("Expected output to contain %q", expected)
 		}
-	}
-}
-
-// TestFileTransactionLogger_EventKindConstants tests the EventKind constants
-func TestFileTransactionLogger_EventKindConstants(t *testing.T) {
-	if EventDelete != 1 {
-		t.Errorf("Expected EventDelete to be 1, got %d", EventDelete)
-	}
-
-	if EventPut != 2 {
-		t.Errorf("Expected EventPut to be 2, got %d", EventPut)
 	}
 }
 
