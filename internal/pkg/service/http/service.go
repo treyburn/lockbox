@@ -9,10 +9,11 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/treyburn/lockbox/internal/pkg/logger"
 	"github.com/treyburn/lockbox/internal/pkg/store"
 )
 
-func NewService(storage store.Store, logger store.TransactionLog) *Service {
+func NewService(storage store.Store, logger logger.TransactionLog) *Service {
 	return &Service{
 		storage: storage,
 		logger:  logger,
@@ -21,7 +22,7 @@ func NewService(storage store.Store, logger store.TransactionLog) *Service {
 
 type Service struct {
 	storage store.Store
-	logger  store.TransactionLog
+	logger  logger.TransactionLog
 }
 
 func (s *Service) GetByKey(w http.ResponseWriter, r *http.Request) {

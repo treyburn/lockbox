@@ -8,18 +8,19 @@ import (
 
 	"github.com/gorilla/mux"
 
+	"github.com/treyburn/lockbox/internal/pkg/logger"
 	api "github.com/treyburn/lockbox/internal/pkg/service/http"
 	"github.com/treyburn/lockbox/internal/pkg/store"
 )
 
 //nolint:cyclop
-func initializeLogger(cache store.Store) (store.TransactionLog, error) {
+func initializeLogger(cache store.Store) (logger.TransactionLog, error) {
 	// TODO - I believe this needs to be 0755 in order for the file to be shared between copies?
 	file, err := os.OpenFile("/var/log/transaction.log", os.O_RDWR|os.O_APPEND, 0o755) //nolint:gosec
 	if err != nil {
 		return nil, fmt.Errorf("error opening transaction log file: %w", err)
 	}
-	logger := store.NewTransactionLog(file)
+	log := logger.NewFileTransactionLogger(file)
 
 	// db backed logger setup
 	// logger, err := store.NewPostgresTransactionLogger(store.PostgresDBParams{
@@ -33,9 +34,9 @@ func initializeLogger(cache store.Store) (store.TransactionLog, error) {
 	// 	return nil, fmt.Errorf("error opening postgres transaction log: %w", err)
 	// }
 
-	events, errs := logger.ReadEvents()
+	events, errs := log.ReadEvents()
 
-	e, ok := store.Event{}, true
+	e, ok := logger.Event{}, true
 	for ok && err == nil {
 		select {
 		case e, ok = <-events:
@@ -45,9 +46,9 @@ func initializeLogger(cache store.Store) (store.TransactionLog, error) {
 			}
 			slog.Debug(fmt.Sprintf("event: %+v", e))
 			switch e.Kind {
-			case store.EventPut:
+			case logger.EventPut:
 				err = cache.Put(e.Key, e.Value)
-			case store.EventDelete:
+			case logger.EventDelete:
 				err = cache.Delete(e.Key)
 			default:
 				err = fmt.Errorf("unknown event kind: %d", e.Kind)
@@ -65,22 +66,22 @@ func initializeLogger(cache store.Store) (store.TransactionLog, error) {
 		return nil, fmt.Errorf("error processing events at logger startup: %w", err)
 	}
 
-	logger.Run()
+	log.Run()
 
-	return logger, err
+	return log, err
 }
 
 func main() {
 	slog.SetLogLoggerLevel(slog.LevelDebug)
 	slog.Info("Starting API server")
 	cache := store.NewInMemoryStore()
-	logger, err := initializeLogger(cache)
+	log, err := initializeLogger(cache)
 	if err != nil {
 		slog.Error(fmt.Sprintf("error initializing logger: %v", err))
 		os.Exit(1)
 	}
 
-	svc := api.NewService(cache, logger)
+	svc := api.NewService(cache, log)
 	r := mux.NewRouter()
 
 	r.HandleFunc("/v1/{key}", svc.PutForKey).Methods(http.MethodPut)

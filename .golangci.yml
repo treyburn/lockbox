@@ -40,14 +40,31 @@ linters:
     - unconvert
   disable:
     - lll
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - gocognit
+          - cyclop
+          - funlen
 
 formatters:
   enable:
+    - gci
     - gofumpt
     - goimports
   settings:
+    gci:
+      sections:
+        - standard
+        - dot
+        - blank
+        - default
+        - localmodule
+      custom-order: true
     gofumpt:
       module-path: github.com/treyburn/lockbox
+      extra-rules: true
     goimports:
       local-prefixes:
         - github.com/treyburn/lockbox

@@ -1,28 +1,23 @@
-package store
+package logger
 
 import (
 	"bufio"
 	"fmt"
 	"io"
+	"sync/atomic"
 )
 
-type TransactionLog interface {
-	WritePut(key, value string)
-	WriteDelete(key string)
-	Err() <-chan error
+// compile time assertion that FileTransactionLogger is a TransactionLog
+var _ TransactionLog = (*FileTransactionLogger)(nil)
 
-	Run()
-	ReadEvents() (<-chan Event, <-chan error)
-}
-
-func NewTransactionLog(fileHandle io.ReadWriteCloser) TransactionLog {
+func NewFileTransactionLogger(fileHandle io.ReadWriteCloser) *FileTransactionLogger {
 	return &FileTransactionLogger{file: fileHandle}
 }
 
 type FileTransactionLogger struct {
 	events       chan<- Event
 	errors       <-chan error
-	lastSequence uint64
+	lastSequence atomic.Uint64
 	file         io.ReadWriteCloser
 }
 
@@ -45,9 +40,9 @@ func (l *FileTransactionLogger) Run() {
 	l.errors = errs
 	go func() {
 		for e := range events {
-			l.lastSequence++
+			seq := l.lastSequence.Add(1)
 
-			_, err := fmt.Fprintf(l.file, "%d\t%d\t%s\t%s\n", l.lastSequence, e.Kind, e.Key, e.Value)
+			_, err := fmt.Fprintf(l.file, "%d\t%d\t%s\t%s\n", seq, e.Kind, e.Key, e.Value)
 			if err != nil {
 				errs <- err
 				return
@@ -69,19 +64,24 @@ func (l *FileTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 
 		for scanner.Scan() {
 			line := scanner.Text()
-
 			if _, err := fmt.Sscanf(line, "%d\t%d\t%s\t%s", &e.Sequence, &e.Kind, &e.Key, &e.Value); err != nil {
 				outErr <- fmt.Errorf("error parsing event: %w", err)
 				return
 			}
 
-			if l.lastSequence >= e.Sequence {
-				outErr <- fmt.Errorf("transaction sequence out of sequence: %d >= %d", l.lastSequence, e.Sequence)
-				return
-			}
+			// atomically compare and swap the value for our latest sequence
+			for {
+				last := l.lastSequence.Load()
+				if last >= e.Sequence {
+					outErr <- fmt.Errorf("transaction sequence out of sequence: %d >= %d", last, e.Sequence)
+					return
+				}
 
-			l.lastSequence = e.Sequence
-			outEvent <- e
+				if l.lastSequence.CompareAndSwap(last, e.Sequence) {
+					outEvent <- e
+					break
+				}
+			}
 		}
 
 		if err := scanner.Err(); err != nil {
