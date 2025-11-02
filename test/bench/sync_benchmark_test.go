@@ -31,8 +31,6 @@ import (
 // │   Atomic                   │        2.95  │
 // └────────────────────────────┴──────────────┘
 
-
-
 // Mutex-based counter
 type MutexCounter struct {
 	mu    sync.Mutex
