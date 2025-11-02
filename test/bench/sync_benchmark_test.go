@@ -13,7 +13,7 @@ import (
 //
 // Benchmark Results (AMD Ryzen 7 9800X3D 8-Core Processor)
 // ┌────────────────────────────┬──────────────┐
-// │ Benchmark                  │ ns/op        │
+// │ Benchmark                  │       ns/op  │
 // ├────────────────────────────┼──────────────┤
 // │ Mixed Workload             │              │
 // │   Mutex                    │       53.13  │
