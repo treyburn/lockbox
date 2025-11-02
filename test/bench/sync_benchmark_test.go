@@ -9,26 +9,26 @@ import (
 // The goal of these benchmarks was to determine whether we should use a [sync.Mutex], [sync.RWMutex], or an
 // [atomic.Uint64] as our synchronizing primitive for the sequence counter in the [logger.FileTransactionLogger].
 // The results showed a performance improvement across the board for an [atomic.Uint64] - even in cases where we may
-// have heavy write contention.
+// have heavy write contention - but especially so where we had heavy read traffic.
 //
 // Benchmark Results (AMD Ryzen 7 9800X3D 8-Core Processor)
 // ┌────────────────────────────┬──────────────┐
 // │ Benchmark                  │       ns/op  │
 // ├────────────────────────────┼──────────────┤
 // │ Mixed Workload             │              │
-// │   Mutex                    │       53.13  │
-// │   RWMutex                  │       15.25  │
-// │   Atomic                   │        6.28  │
+// │   Mutex                    │       54.10  │
+// │   RWMutex                  │       16.58  │
+// │   Atomic                   │       10.08  │
 // ├────────────────────────────┼──────────────┤
 // │ Write Heavy                │              │
-// │   Mutex                    │       56.79  │
-// │   RWMutex                  │       22.56  │
-// │   Atomic                   │       14.56  │
+// │   Mutex                    │       56.98  │
+// │   RWMutex                  │       22.79  │
+// │   Atomic                   │       20.44  │
 // ├────────────────────────────┼──────────────┤
 // │ Read Heavy                 │              │
-// │   Mutex                    │       48.58  │
-// │   RWMutex                  │       13.64  │
-// │   Atomic                   │        2.95  │
+// │   Mutex                    │       53.37  │
+// │   RWMutex                  │       11.37  │
+// │   Atomic                   │        3.79  │
 // └────────────────────────────┴──────────────┘
 
 // Mutex-based counter
@@ -50,10 +50,6 @@ func (c *MutexCounter) Load() uint64 {
 	return c.value
 }
 
-func (c *MutexCounter) CompareAndIncrement() uint64 {
-	return c.Increment()
-}
-
 type RWMutexCounter struct {
 	mu    sync.RWMutex
 	value uint64
@@ -72,24 +68,12 @@ func (c *RWMutexCounter) Load() uint64 {
 	return c.value
 }
 
-func (c *RWMutexCounter) CompareAndIncrement() uint64 {
-	return c.Increment()
-}
-
 // Atomic-based counter
 type AtomicCounter struct {
 	value atomic.Uint64
 }
 
 func (c *AtomicCounter) Increment() uint64 {
-	return c.value.Add(1)
-}
-
-func (c *AtomicCounter) Load() uint64 {
-	return c.value.Load()
-}
-
-func (c *AtomicCounter) CompareAndIncrement() uint64 {
 	for {
 		x := c.value.Load()
 		if c.value.CompareAndSwap(x, x+1) {
@@ -98,17 +82,19 @@ func (c *AtomicCounter) CompareAndIncrement() uint64 {
 	}
 }
 
+func (c *AtomicCounter) Load() uint64 {
+	return c.value.Load()
+}
+
 // Mixed workload with contention: 80% reads, 20% writes
 func BenchmarkMutex_MixedWorkload(b *testing.B) {
 	counter := &MutexCounter{}
 	b.RunParallel(func(pb *testing.PB) {
 		i := 0
 		for pb.Next() {
-			switch i % 10 {
+			switch i % 5 {
 			case 0:
 				_ = counter.Increment()
-			case 1:
-				_ = counter.CompareAndIncrement()
 			default:
 				_ = counter.Load()
 			}
@@ -122,11 +108,9 @@ func BenchmarkRWMutex_MixedWorkload(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		i := 0
 		for pb.Next() {
-			switch i % 10 {
+			switch i % 5 {
 			case 0:
 				_ = counter.Increment()
-			case 1:
-				_ = counter.CompareAndIncrement()
 			default:
 				_ = counter.Load()
 			}
@@ -140,11 +124,9 @@ func BenchmarkAtomic_MixedWorkload(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		i := 0
 		for pb.Next() {
-			switch i % 10 {
+			switch i % 5 {
 			case 0:
 				_ = counter.Increment()
-			case 1:
-				_ = counter.CompareAndIncrement()
 			default:
 				_ = counter.Load()
 			}
@@ -159,11 +141,9 @@ func BenchmarkMutex_WriteHeavy(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		i := 0
 		for pb.Next() {
-			switch i % 4 {
+			switch i % 2 {
 			case 0:
 				_ = counter.Increment()
-			case 1:
-				_ = counter.CompareAndIncrement()
 			default:
 				_ = counter.Load()
 			}
@@ -177,11 +157,9 @@ func BenchmarkRWMutex_WriteHeavy(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		i := 0
 		for pb.Next() {
-			switch i % 4 {
+			switch i % 2 {
 			case 0:
 				_ = counter.Increment()
-			case 1:
-				_ = counter.CompareAndIncrement()
 			default:
 				_ = counter.Load()
 			}
@@ -195,11 +173,9 @@ func BenchmarkAtomic_WriteHeavy(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		i := 0
 		for pb.Next() {
-			switch i % 4 {
+			switch i % 2 {
 			case 0:
 				_ = counter.Increment()
-			case 1:
-				_ = counter.CompareAndIncrement()
 			default:
 				_ = counter.Load()
 			}
@@ -214,11 +190,9 @@ func BenchmarkMutex_ReadHeavy(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		i := 0
 		for pb.Next() {
-			switch i % 40 {
+			switch i % 20 {
 			case 0:
 				_ = counter.Increment()
-			case 1:
-				_ = counter.CompareAndIncrement()
 			default:
 				_ = counter.Load()
 			}
@@ -232,11 +206,9 @@ func BenchmarkRWMutex_ReadHeavy(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		i := 0
 		for pb.Next() {
-			switch i % 40 {
+			switch i % 20 {
 			case 0:
 				_ = counter.Increment()
-			case 1:
-				_ = counter.CompareAndIncrement()
 			default:
 				_ = counter.Load()
 			}
@@ -250,11 +222,9 @@ func BenchmarkAtomic_ReadHeavy(b *testing.B) {
 	b.RunParallel(func(pb *testing.PB) {
 		i := 0
 		for pb.Next() {
-			switch i % 40 {
+			switch i % 20 {
 			case 0:
 				_ = counter.Increment()
-			case 1:
-				_ = counter.CompareAndIncrement()
 			default:
 				_ = counter.Load()
 			}
