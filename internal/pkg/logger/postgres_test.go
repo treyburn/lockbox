@@ -107,6 +107,7 @@ func TestPostgresTransactionLogger_WritePut(t *testing.T) {
 	mock.ExpectExec(`INSERT INTO transactions`).
 		WithArgs(EventPut, "key2", "value2").
 		WillReturnResult(sqlmock.NewResult(2, 1))
+	mock.ExpectClose()
 
 	logger := &PostgresTransactionLogger{db: db}
 	logger.Run()
@@ -120,7 +121,6 @@ func TestPostgresTransactionLogger_WritePut(t *testing.T) {
 	// Give time for writes to complete
 	time.Sleep(50 * time.Millisecond)
 
-	mock.ExpectClose()
 	err = logger.Close()
 	assert.NoError(t, err)
 
@@ -144,6 +144,7 @@ func TestPostgresTransactionLogger_WriteDelete(t *testing.T) {
 	mock.ExpectExec(`INSERT INTO transactions`).
 		WithArgs(EventDelete, "key2", "").
 		WillReturnResult(sqlmock.NewResult(2, 1))
+	mock.ExpectClose()
 
 	logger := &PostgresTransactionLogger{db: db}
 	logger.Run()
@@ -157,7 +158,6 @@ func TestPostgresTransactionLogger_WriteDelete(t *testing.T) {
 	// Give time for writes to complete
 	time.Sleep(50 * time.Millisecond)
 
-	mock.ExpectClose()
 	err = logger.Close()
 	assert.NoError(t, err)
 
@@ -184,6 +184,7 @@ func TestPostgresTransactionLogger_MixedOperations(t *testing.T) {
 	mock.ExpectExec(`INSERT INTO transactions`).
 		WithArgs(EventPut, "key3", "value3").
 		WillReturnResult(sqlmock.NewResult(3, 1))
+	mock.ExpectClose()
 
 	logger := &PostgresTransactionLogger{db: db}
 	logger.Run()
@@ -198,7 +199,6 @@ func TestPostgresTransactionLogger_MixedOperations(t *testing.T) {
 	// Give time for writes to complete
 	time.Sleep(50 * time.Millisecond)
 
-	mock.ExpectClose()
 	err = logger.Close()
 	assert.NoError(t, err)
 
@@ -503,6 +503,7 @@ func TestPostgresTransactionLogger_SequenceIncrement(t *testing.T) {
 			WithArgs(EventPut, fmt.Sprintf("key%d", i), fmt.Sprintf("value%d", i)).
 			WillReturnResult(sqlmock.NewResult(int64(i), 1))
 	}
+	mock.ExpectClose()
 
 	logger := &PostgresTransactionLogger{db: db}
 	logger.Run()
@@ -518,7 +519,6 @@ func TestPostgresTransactionLogger_SequenceIncrement(t *testing.T) {
 	// Give time for writes to complete
 	time.Sleep(100 * time.Millisecond)
 
-	mock.ExpectClose()
 	err = logger.Close()
 	assert.NoError(t, err)
 
@@ -650,6 +650,7 @@ func TestPostgresTransactionLogger_Close(t *testing.T) {
 	mock.ExpectExec(`INSERT INTO transactions`).
 		WithArgs(EventPut, "key1", "value1").
 		WillReturnResult(sqlmock.NewResult(1, 1))
+	mock.ExpectClose()
 
 	logger := &PostgresTransactionLogger{db: db}
 	logger.Run()
@@ -664,7 +665,6 @@ func TestPostgresTransactionLogger_Close(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	// Close should not return an error
-	mock.ExpectClose()
 	err = logger.Close()
 	assert.NoError(t, err)
 
