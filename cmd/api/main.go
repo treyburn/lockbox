@@ -84,6 +84,7 @@ func main() {
 	svc := api.NewService(cache, log)
 	r := mux.NewRouter()
 
+	// TODO - the svc must have a way to close that lets it drain its requests then close the logger
 	r.HandleFunc("/v1/{key}", svc.PutForKey).Methods(http.MethodPut)
 	r.HandleFunc("/v1/{key}", svc.GetByKey).Methods(http.MethodGet)
 	r.HandleFunc("/v1/{key}", svc.DeleteKey).Methods(http.MethodDelete)
