@@ -11,6 +11,7 @@ import (
 type PostgresTransactionLogger struct {
 	events chan<- Event
 	errors <-chan error
+	done   chan struct{}
 	db     *sql.DB
 }
 
@@ -67,17 +68,24 @@ func (p *PostgresTransactionLogger) Run() {
 	p.events = events
 	errs := make(chan error, 1)
 	p.errors = errs
+	done := make(chan struct{})
+	p.done = done
 
 	const insertQuery = `INSERT INTO transactions
 					(event_type, key, value)
 					VALUES ($1, $2, $3)`
 
 	go func() {
-		for e := range events {
-
-			_, err := p.db.Exec(insertQuery, e.Kind, e.Key, e.Value)
-			if err != nil {
-				errs <- fmt.Errorf("failed to write transaction: %w", err)
+		for {
+			select {
+			case <-p.done:
+				close(errs)
+				return
+			case e := <-events:
+				_, err := p.db.Exec(insertQuery, e.Kind, e.Key, e.Value)
+				if err != nil {
+					errs <- fmt.Errorf("failed to write transaction: %w", err)
+				}
 			}
 		}
 	}()
@@ -167,6 +175,7 @@ func (p *PostgresTransactionLogger) createTable() error {
 }
 
 func (p *PostgresTransactionLogger) Close() error {
-	close(p.events)
+	p.done <- struct{}{}
+	//close(p.events) TODO - figure out where to safely close this
 	return p.db.Close()
 }
