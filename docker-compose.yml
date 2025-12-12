@@ -17,8 +17,7 @@ services:
       - ./go.mod:/src/go.mod:delegated
       - ./go.sum:/src/go.sum:delegated
       - ./cmd:/src/cmd:delegated
-      - ./service:/src/service:delegated
-      - ./store:/src/store:delegated
+      - ./internal:/src/internal:delegated
       # go cache for compiling
       - go-mod-cache:/go/pkg/mod/cache
       - go-build-cache:/root/.cache
@@ -107,6 +106,36 @@ services:
       interval: 2s
       timeout: 1s
       retries: 5
+  test:
+    build:
+      context: .
+      dockerfile: build/Dockerfile
+      target: test
+    volumes:
+      # Mount only the Go code into src
+      - ./go.mod:/src/go.mod:delegated
+      - ./go.sum:/src/go.sum:delegated
+      - ./cmd:/src/cmd:delegated
+      - ./internal:/src/internal:delegated
+      # go cache for compiling
+      - go-mod-cache:/go/pkg/mod/cache
+      - go-build-cache:/root/.cache
+
+  lint:
+    image: golangci/golangci-lint:v2.5.0-alpine
+    command: golangci-lint fmt && golangci-lint run
+    working_dir: /src
+    volumes:
+      # Mount only the Go code into src
+      - ./go.mod:/src/go.mod:delegated
+      - ./go.sum:/src/go.sum:delegated
+      - ./cmd:/src/cmd:delegated
+      - ./internal:/src/internal:delegated
+      # mount linter config
+      - ./.golangci.yml:/src/.golangci.yml
+      # go cache for compiling
+      - go-mod-cache:/go/pkg/mod/cache
+      - go-build-cache:/root/.cache
 
 volumes:
   go-mod-cache:
