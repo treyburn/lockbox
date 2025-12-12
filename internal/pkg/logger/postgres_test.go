@@ -16,7 +16,7 @@ import (
 func TestNewPostgresTransactionLogger(t *testing.T) {
 	db, mock, err := sqlmock.New()
 	require.NoError(t, err)
-	defer db.Close()
+	defer dbCleanup(t, db, mock)
 
 	// Expect ping
 	mock.ExpectPing()

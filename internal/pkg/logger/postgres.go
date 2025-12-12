@@ -176,6 +176,6 @@ func (p *PostgresTransactionLogger) createTable() error {
 
 func (p *PostgresTransactionLogger) Close() error {
 	p.done <- struct{}{}
-	//close(p.events) TODO - figure out where to safely close this
+	// close(p.events) TODO - figure out where to safely close this
 	return p.db.Close()
 }
