@@ -29,6 +29,7 @@ linters:
     - intrange
     - iotamixing
 #    - noctx
+    - nolintlint
     - reassign
     - recvcheck
 #    - revive
@@ -47,6 +48,10 @@ linters:
           - gocognit
           - cyclop
           - funlen
+  settings:
+    nolintlint:
+      require-explanation: true
+      require-specific: true
 
 issues:
   fix: false
