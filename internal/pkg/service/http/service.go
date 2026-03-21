@@ -2,10 +2,10 @@ package http
 
 import (
 	"errors"
-	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 
 	"github.com/gorilla/mux"
 
@@ -33,28 +33,29 @@ func (s *Service) GetByKey(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		if errors.Is(err, store.ErrNotFound) {
 			w.WriteHeader(http.StatusNotFound)
-			slog.Warn(fmt.Sprintf("key not found: %v", key))
+			slog.Warn("key not found", slog.String("key", strconv.Quote(key)))
 		} else {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
-			slog.Error(fmt.Sprintf("failed to read key: %v", err))
+			slog.Error("failed to read key", slog.String("key", strconv.Quote(key)), slog.Any("error", err))
 		}
 		return
 	}
 
+	w.Header().Set("Content-Type", "application/octet-stream")
 	w.WriteHeader(http.StatusOK)
-	_, err = w.Write([]byte(value))
+	_, err = w.Write([]byte(value)) //nolint:gosec // Content-Type set to application/octet-stream which prevents XSS
 	if err != nil {
-		slog.Error(fmt.Sprintf("failed to write response: %v", err))
+		slog.Error("failed to write response", slog.Any("error", err))
 		return
 	}
-	slog.Debug(fmt.Sprintf("retrieved key: %v", key))
+	slog.Debug("retrieved key", slog.String("key", strconv.Quote(key)))
 }
 
 func (s *Service) PutForKey(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		err := r.Body.Close()
 		if err != nil {
-			slog.Error(fmt.Sprintf("failed to close request body: %v", err))
+			slog.Error("failed to close request body", slog.Any("error", err))
 		}
 	}()
 	vars := mux.Vars(r)
@@ -62,14 +63,14 @@ func (s *Service) PutForKey(w http.ResponseWriter, r *http.Request) {
 
 	value, err := io.ReadAll(r.Body)
 	if err != nil {
-		slog.Error(fmt.Sprintf("failed to read request: %v", err))
+		slog.Error("failed to read request", slog.Any("error", err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	err = s.storage.Put(key, string(value))
 	if err != nil {
-		slog.Error(fmt.Sprintf("failed to store key: %v", err))
+		slog.Error("failed to store key", slog.Any("error", err))
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -77,7 +78,7 @@ func (s *Service) PutForKey(w http.ResponseWriter, r *http.Request) {
 	s.logger.WritePut(key, string(value))
 
 	w.WriteHeader(http.StatusCreated)
-	slog.Debug(fmt.Sprintf("stored key: %v", key))
+	slog.Debug("stored key", slog.String("key", strconv.Quote(key)))
 }
 
 func (s *Service) DeleteKey(w http.ResponseWriter, r *http.Request) {
@@ -87,12 +88,11 @@ func (s *Service) DeleteKey(w http.ResponseWriter, r *http.Request) {
 	err := s.storage.Delete(key)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-		slog.Error(fmt.Sprintf("failed to delete key: %v", err))
+		slog.Error("failed to delete key", slog.Any("error", err))
 		return
 	}
 
 	s.logger.WriteDelete(key)
-
-	w.WriteHeader(http.StatusOK)
-	slog.Debug(fmt.Sprintf("deleted key: %v", key))
+	w.WriteHeader(http.StatusAccepted)
+	slog.Debug("deleted key", slog.String("key", strconv.Quote(key)))
 }
