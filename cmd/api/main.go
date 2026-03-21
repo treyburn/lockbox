@@ -13,10 +13,10 @@ import (
 	"github.com/treyburn/lockbox/internal/pkg/store"
 )
 
-//nolint:cyclop
+//nolint:cyclop // TODO refactor logger setup
 func initializeLogger(cache store.Store) (logger.TransactionLog, error) {
 	// TODO - I believe this needs to be 0755 in order for the file to be shared between copies?
-	file, err := os.OpenFile("/var/log/transaction.log", os.O_RDWR|os.O_APPEND, 0o755) //nolint:gosec
+	file, err := os.OpenFile("/var/log/transaction.log", os.O_RDWR|os.O_APPEND, 0o755) //nolint:gosec // TODO - investigate
 	if err != nil {
 		return nil, fmt.Errorf("error opening transaction log file: %w", err)
 	}
@@ -95,7 +95,7 @@ func main() {
 	// err = http.ListenAndServeTLS(":8080", cert, key, r)
 
 	// TODO - need to enable a sane default timeout
-	err = http.ListenAndServe(":8080", r) //nolint:gosec
+	err = http.ListenAndServe(":8080", r) //nolint:gosec // TODO - investigate
 	if err != nil {
 		slog.Error(fmt.Sprintf("serrver error: %v", err))
 		os.Exit(1)
