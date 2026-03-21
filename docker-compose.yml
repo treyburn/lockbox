@@ -122,8 +122,8 @@ services:
       - go-build-cache:/root/.cache
 
   lint:
-    image: golangci/golangci-lint:v2.5.0-alpine
-    command: golangci-lint fmt && golangci-lint run
+    image: golangci/golangci-lint:v2.11.3-alpine
+    command: golangci-lint fmt && golangci-lint run --fix
     working_dir: /src
     volumes:
       # Mount only the Go code into src
