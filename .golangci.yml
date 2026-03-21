@@ -29,6 +29,7 @@ linters:
     - intrange
     - iotamixing
 #    - noctx
+    - nolintlint
     - reassign
     - recvcheck
 #    - revive
@@ -47,6 +48,23 @@ linters:
           - gocognit
           - cyclop
           - funlen
+  settings:
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+
+issues:
+  fix: false
+  # Maximum issues count per one linter.
+  # Set to 0 to disable.
+  # Default: 50
+  max-issues-per-linter: 0
+  # Maximum count of issues with the same text.
+  # Set to 0 to disable.
+  # Default: 3
+  max-same-issues: 0
+severity:
+  default: error
 
 formatters:
   enable:

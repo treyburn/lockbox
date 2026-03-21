@@ -1,4 +1,4 @@
-FROM golang:1.25.1-alpine AS base
+FROM golang:1.26.1-alpine AS base
 
 # CGo is not Go
 ENV CGO_ENABLED=0
