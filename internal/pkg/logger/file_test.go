@@ -67,19 +67,25 @@ func TestNewFileTransactionLogger(t *testing.T) {
 
 // TestFileTransactionLogger_Run tests the Run method initialization
 func TestFileTransactionLogger_Run(t *testing.T) {
-	mock := newMockReadWriteCloser("")
-	logger := NewFileTransactionLogger(mock)
+	synctest.Test(t, func(t *testing.T) {
+		mock := newMockReadWriteCloser("")
+		logger := NewFileTransactionLogger(mock)
 
-	assert.Nil(t, logger.events, "Expected events channel to be nil before Run()")
-	assert.Nil(t, logger.errors, "Expected errors channel to be nil before Run()")
+		assert.Nil(t, logger.events, "Expected events channel to be nil before Run()")
+		assert.Nil(t, logger.errors, "Expected errors channel to be nil before Run()")
 
-	logger.Run()
+		logger.Run()
 
-	// Give goroutine time to start
-	time.Sleep(10 * time.Millisecond)
+		// Give goroutine time to start
+		time.Sleep(10 * time.Millisecond)
 
-	assert.NotNil(t, logger.events, "Expected events channel to be initialized after Run()")
-	assert.NotNil(t, logger.errors, "Expected errors channel to be initialized after Run()")
+		assert.NotNil(t, logger.events, "Expected events channel to be initialized after Run()")
+		assert.NotNil(t, logger.errors, "Expected errors channel to be initialized after Run()")
+
+		err := logger.Close()
+		assert.NoError(t, err)
+		synctest.Wait()
+	})
 }
 
 // TestFileTransactionLogger_WritePut tests writing PUT events
@@ -119,78 +125,96 @@ func TestFileTransactionLogger_WritePut(t *testing.T) {
 
 // TestFileTransactionLogger_WriteDelete tests writing DELETE events
 func TestFileTransactionLogger_WriteDelete(t *testing.T) {
-	mock := newMockReadWriteCloser("")
-	logger := NewFileTransactionLogger(mock)
-	logger.Run()
+	synctest.Test(t, func(t *testing.T) {
+		mock := newMockReadWriteCloser("")
+		logger := NewFileTransactionLogger(mock)
+		logger.Run()
 
-	// Give goroutine time to start
-	time.Sleep(10 * time.Millisecond)
+		// Give goroutine time to start
+		time.Sleep(10 * time.Millisecond)
 
-	logger.WriteDelete("key1")
-	logger.WriteDelete("key2")
+		logger.WriteDelete("key1")
+		logger.WriteDelete("key2")
 
-	// Give time for writes to complete
-	time.Sleep(50 * time.Millisecond)
+		// Give time for writes to complete
+		time.Sleep(50 * time.Millisecond)
 
-	output := mock.String()
-	expectedLines := []string{
-		"1\t1\tkey1\t",
-		"2\t1\tkey2\t",
-	}
+		output := mock.String()
+		expectedLines := []string{
+			"1\t1\tkey1\t",
+			"2\t1\tkey2\t",
+		}
 
-	for _, expected := range expectedLines {
-		assert.Contains(t, output, expected)
-	}
+		for _, expected := range expectedLines {
+			assert.Contains(t, output, expected)
+		}
 
-	assert.Equal(t, uint64(2), logger.lastSequence.Load())
+		assert.Equal(t, uint64(2), logger.lastSequence.Load())
+
+		err := logger.Close()
+		assert.NoError(t, err)
+		synctest.Wait()
+	})
 }
 
 // TestFileTransactionLogger_MixedOperations tests mixed PUT and DELETE operations
 func TestFileTransactionLogger_MixedOperations(t *testing.T) {
-	mock := newMockReadWriteCloser("")
-	logger := NewFileTransactionLogger(mock)
-	logger.Run()
+	synctest.Test(t, func(t *testing.T) {
+		mock := newMockReadWriteCloser("")
+		logger := NewFileTransactionLogger(mock)
+		logger.Run()
 
-	// Give goroutine time to start
-	time.Sleep(10 * time.Millisecond)
+		// Give goroutine time to start
+		time.Sleep(10 * time.Millisecond)
 
-	logger.WritePut("key1", "value1")
-	logger.WriteDelete("key2")
-	logger.WritePut("key3", "value3")
+		logger.WritePut("key1", "value1")
+		logger.WriteDelete("key2")
+		logger.WritePut("key3", "value3")
 
-	// Give time for writes to complete
-	time.Sleep(50 * time.Millisecond)
+		// Give time for writes to complete
+		time.Sleep(50 * time.Millisecond)
 
-	output := mock.String()
-	expectedLines := []string{
-		"1\t2\tkey1\tvalue1",
-		"2\t1\tkey2\t",
-		"3\t2\tkey3\tvalue3",
-	}
+		output := mock.String()
+		expectedLines := []string{
+			"1\t2\tkey1\tvalue1",
+			"2\t1\tkey2\t",
+			"3\t2\tkey3\tvalue3",
+		}
 
-	for _, expected := range expectedLines {
-		assert.Contains(t, output, expected)
-	}
+		for _, expected := range expectedLines {
+			assert.Contains(t, output, expected)
+		}
 
-	assert.Equal(t, uint64(3), logger.lastSequence.Load())
+		assert.Equal(t, uint64(3), logger.lastSequence.Load())
+
+		err := logger.Close()
+		assert.NoError(t, err)
+		synctest.Wait()
+	})
 }
 
 // TestFileTransactionLogger_Err tests the Err() method
 func TestFileTransactionLogger_Err(t *testing.T) {
-	mock := newMockReadWriteCloser("")
-	logger := NewFileTransactionLogger(mock)
-	logger.Run()
+	synctest.Test(t, func(t *testing.T) {
+		mock := newMockReadWriteCloser("")
+		logger := NewFileTransactionLogger(mock)
+		logger.Run()
 
-	errChan := logger.Err()
-	require.NotNil(t, errChan, "Expected non-nil error channel")
+		errChan := logger.Err()
+		require.NotNil(t, errChan, "Expected non-nil error channel")
 
-	// Verify channel is initially empty
-	select {
-	case err := <-errChan:
-		t.Errorf("Expected empty error channel, got: %v", err)
-	case <-time.After(10 * time.Millisecond):
-		// Expected - no errors
-	}
+		// Verify channel is initially empty
+		select {
+		case err := <-errChan:
+			t.Errorf("Expected empty error channel, got: %v", err)
+		case <-time.After(10 * time.Millisecond):
+			// Expected - no errors
+		}
+
+		err := logger.Close()
+		assert.NoError(t, err)
+		synctest.Wait()
+	})
 }
 
 // TestFileTransactionLogger_ReadEvents_EmptyFile tests reading from an empty file
@@ -254,7 +278,7 @@ func TestFileTransactionLogger_ReadEvents_ValidData(t *testing.T) {
 	select {
 	case <-done:
 		// Expected
-	case <-time.After(100 * time.Second):
+	case <-time.After(100 * time.Millisecond):
 		t.Fatal("Timeout waiting for ReadEvents to complete")
 	}
 
@@ -401,29 +425,35 @@ func TestFileTransactionLogger_ReadEvents_UpdatesLastSequence(t *testing.T) {
 
 // TestFileTransactionLogger_SequenceIncrement tests that sequence numbers increment correctly
 func TestFileTransactionLogger_SequenceIncrement(t *testing.T) {
-	mock := newMockReadWriteCloser("")
-	logger := NewFileTransactionLogger(mock)
-	logger.Run()
+	synctest.Test(t, func(t *testing.T) {
+		mock := newMockReadWriteCloser("")
+		logger := NewFileTransactionLogger(mock)
+		logger.Run()
 
-	// Give goroutine time to start
-	time.Sleep(10 * time.Millisecond)
+		// Give goroutine time to start
+		time.Sleep(10 * time.Millisecond)
 
-	// Write multiple events
-	for i := 1; i <= 10; i++ {
-		logger.WritePut(fmt.Sprintf("key%d", i), fmt.Sprintf("value%d", i))
-	}
+		// Write multiple events
+		for i := 1; i <= 10; i++ {
+			logger.WritePut(fmt.Sprintf("key%d", i), fmt.Sprintf("value%d", i))
+		}
 
-	// Give time for writes to complete
-	time.Sleep(50 * time.Millisecond)
+		// Give time for writes to complete
+		time.Sleep(50 * time.Millisecond)
 
-	assert.Equal(t, uint64(10), logger.lastSequence.Load())
+		assert.Equal(t, uint64(10), logger.lastSequence.Load())
 
-	// Verify all sequences are in the output
-	output := mock.String()
-	for i := 1; i <= 10; i++ {
-		expected := fmt.Sprintf("%d\t2\tkey%d\tvalue%d", i, i, i)
-		assert.Contains(t, output, expected)
-	}
+		// Verify all sequences are in the output
+		output := mock.String()
+		for i := 1; i <= 10; i++ {
+			expected := fmt.Sprintf("%d\t2\tkey%d\tvalue%d", i, i, i)
+			assert.Contains(t, output, expected)
+		}
+
+		err := logger.Close()
+		assert.NoError(t, err)
+		synctest.Wait()
+	})
 }
 
 // failingWriter is a mock writer that always returns an error
