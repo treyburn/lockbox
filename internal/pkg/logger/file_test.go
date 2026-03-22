@@ -570,3 +570,95 @@ func TestFileTransactionLogger_ReadEvents_WithValues(t *testing.T) {
 		})
 	}
 }
+
+// TestFileTransactionLogger_WriteReadRoundTrip tests that events written via Run can be read back
+// by ReadEvents. This is the highest-value test for the file logger since it validates the
+// contract between the write and read halves.
+//
+// BUG: This test is expected to fail. WriteDelete produces "seq\t1\tkey\t\n" (empty value),
+// but ReadEvents uses fmt.Sscanf with %s which cannot match an empty string. The serialization
+// format does not round-trip for DELETE events.
+func TestFileTransactionLogger_WriteReadRoundTrip(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		mock := newMockReadWriteCloser("")
+		logger := NewFileTransactionLogger(mock)
+		logger.Run()
+
+		time.Sleep(time.Millisecond)
+
+		logger.WritePut("key1", "value1")
+		logger.WriteDelete("key2")
+		logger.WritePut("key3", "value3")
+
+		time.Sleep(time.Millisecond)
+
+		err := logger.Close()
+		require.NoError(t, err)
+		synctest.Wait()
+
+		// Read back from the same buffer using a fresh logger (resets lastSequence)
+		readLogger := NewFileTransactionLogger(mock)
+		eventChan, errChan := readLogger.ReadEvents()
+
+		var events []Event
+		for e := range eventChan {
+			events = append(events, e)
+		}
+
+		// Check for errors
+		select {
+		case err, ok := <-errChan:
+			if ok {
+				assert.NoError(t, err)
+			}
+		default:
+		}
+
+		require.Len(t, events, 3, "Expected all 3 written events to be read back")
+
+		assert.Equal(t, EventPut, events[0].Kind)
+		assert.Equal(t, "key1", events[0].Key)
+		assert.Equal(t, "value1", events[0].Value)
+
+		assert.Equal(t, EventDelete, events[1].Kind)
+		assert.Equal(t, "key2", events[1].Key)
+		assert.Equal(t, "", events[1].Value, "DELETE event should have empty value")
+
+		assert.Equal(t, EventPut, events[2].Kind)
+		assert.Equal(t, "key3", events[2].Key)
+		assert.Equal(t, "value3", events[2].Value)
+	})
+}
+
+// TestFileTransactionLogger_ReadEvents_DeleteHasEmptyValue verifies that ReadEvents correctly
+// handles DELETE events that have an empty value field in the serialized format.
+//
+// BUG: This test is expected to fail. When a DELETE is written, the value field is empty,
+// producing a line like "2\t1\tkey2\t\n". fmt.Sscanf cannot parse this because %s requires
+// at least one non-whitespace character. ReadEvents will return a parse error on the DELETE
+// line instead of successfully reading 2 events.
+func TestFileTransactionLogger_ReadEvents_DeleteHasEmptyValue(t *testing.T) {
+	// Simulate the exact output that Run() would produce for PUT("key1","value1") then DELETE("key2")
+	data := "1\t2\tkey1\tvalue1\n2\t1\tkey2\t\n"
+	mock := newMockReadWriteCloser(data)
+	logger := NewFileTransactionLogger(mock)
+
+	eventChan, errChan := logger.ReadEvents()
+
+	var events []Event
+	for e := range eventChan {
+		events = append(events, e)
+	}
+
+	// Check for errors - we expect none for valid data
+	select {
+	case err, ok := <-errChan:
+		if ok {
+			assert.NoError(t, err, "ReadEvents should handle DELETE events with empty values")
+		}
+	default:
+	}
+
+	require.Len(t, events, 2, "Expected both PUT and DELETE events to be read")
+	assert.Equal(t, "", events[1].Value, "DELETE event should have empty value, not a leaked value from the previous PUT")
+}
