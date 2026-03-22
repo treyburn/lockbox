@@ -122,7 +122,7 @@ Various items for cleanup.
 - [ ] Add healthz endpoints for service health checking
 
 ### Deployment
-- [ ] Add postgres to docker compose setup for local dev
+- [x] Add postgres to docker compose setup for local dev
 - [ ] Generate a valid cert via LetsEncrypt
 - [ ] Utilize mtls termination between traefik and api services
 - [ ] Enable SSL with Postgres
