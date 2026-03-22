@@ -499,9 +499,11 @@ func TestFileTransactionLogger_ReadEvents_WithValues(t *testing.T) {
 		expectError bool
 	}{
 		{
-			name:        "empty values for delete",
-			data:        "1\t1\tkey1\t\n",
-			expectError: true, // fmt.Sscanf will fail on empty value with trailing newline
+			name: "empty values for delete",
+			data: "1\t1\tkey1\t\n",
+			expected: []Event{
+				{Sequence: 1, Kind: EventDelete, Key: "key1", Value: ""},
+			},
 		},
 		{
 			name: "simple values",
