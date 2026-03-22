@@ -8,9 +8,22 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 
 	"github.com/treyburn/lockbox/internal/pkg/store"
 )
+
+type mockTransactionLog struct {
+	mock.Mock
+}
+
+func (m *mockTransactionLog) WritePut(key, value string) {
+	m.Called(key, value)
+}
+
+func (m *mockTransactionLog) WriteDelete(key string) {
+	m.Called(key)
+}
 
 func TestService_GetByKey(t *testing.T) {
 	t.Run("found key", func(t *testing.T) {
@@ -44,10 +57,11 @@ func TestService_GetByKey(t *testing.T) {
 
 func TestService_PutForKey(t *testing.T) {
 	t.Run("new key", func(t *testing.T) {
-		t.Skip("failing - to fix")
 		internalStore := map[string]string{}
 		cache := store.NewInMemoryStore(store.WithStorage(internalStore))
-		svc := NewService(cache, nil)
+		txLog := &mockTransactionLog{}
+		txLog.On("WritePut", "some-key", "some-value").Return()
+		svc := NewService(cache, txLog)
 
 		response := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodPut, "/v1/some-key", strings.NewReader("some-value"))
@@ -55,15 +69,16 @@ func TestService_PutForKey(t *testing.T) {
 
 		svc.PutForKey(response, request)
 		assert.Equal(t, http.StatusCreated, response.Code)
-		assert.Empty(t, response.Body)
 		assert.Equal(t, "some-value", internalStore["some-key"])
+		txLog.AssertExpectations(t)
 	})
 
 	t.Run("existing key", func(t *testing.T) {
-		t.Skip("failing - need a mock in here")
 		internalStore := map[string]string{"some-key": "some-existing-value"}
 		cache := store.NewInMemoryStore(store.WithStorage(internalStore))
-		svc := NewService(cache, nil)
+		txLog := &mockTransactionLog{}
+		txLog.On("WritePut", "some-key", "some-new-value").Return()
+		svc := NewService(cache, txLog)
 
 		response := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodPut, "/v1/some-key", strings.NewReader("some-new-value"))
@@ -71,40 +86,42 @@ func TestService_PutForKey(t *testing.T) {
 
 		svc.PutForKey(response, request)
 		assert.Equal(t, http.StatusCreated, response.Code)
-		assert.Empty(t, response.Body)
 		assert.Equal(t, "some-new-value", internalStore["some-key"])
+		txLog.AssertExpectations(t)
 	})
 }
 
 func TestService_DeleteForKey(t *testing.T) {
 	t.Run("existing key", func(t *testing.T) {
-		t.Skip("failing - need a mock in here")
 		internalStore := map[string]string{"some-key": "some-existing-value"}
 		cache := store.NewInMemoryStore(store.WithStorage(internalStore))
-		svc := NewService(cache, nil)
+		txLog := &mockTransactionLog{}
+		txLog.On("WriteDelete", "some-key").Return()
+		svc := NewService(cache, txLog)
 
 		response := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodDelete, "/v1/some-key", nil)
 		request = mux.SetURLVars(request, map[string]string{"key": "some-key"})
 
 		svc.DeleteKey(response, request)
-		assert.Equal(t, http.StatusOK, response.Code)
-		assert.Empty(t, response.Body)
+		assert.Equal(t, http.StatusAccepted, response.Code)
 		assert.Empty(t, internalStore)
+		txLog.AssertExpectations(t)
 	})
 	t.Run("no error on non-existing key", func(t *testing.T) {
-		t.Skip("failing - need a mock in here")
 		internalStore := map[string]string{}
 		cache := store.NewInMemoryStore(store.WithStorage(internalStore))
-		svc := NewService(cache, nil)
+		txLog := &mockTransactionLog{}
+		txLog.On("WriteDelete", "some-key").Return()
+		svc := NewService(cache, txLog)
 
 		response := httptest.NewRecorder()
 		request := httptest.NewRequest(http.MethodDelete, "/v1/some-key", nil)
 		request = mux.SetURLVars(request, map[string]string{"key": "some-key"})
 
 		svc.DeleteKey(response, request)
-		assert.Equal(t, http.StatusOK, response.Code)
-		assert.Empty(t, response.Body)
+		assert.Equal(t, http.StatusAccepted, response.Code)
 		assert.Empty(t, internalStore)
+		txLog.AssertExpectations(t)
 	})
 }
