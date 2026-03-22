@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"strconv"
+	"strings"
 	"sync/atomic"
 )
 
@@ -44,7 +46,7 @@ func (l *FileTransactionLogger) Run() {
 
 			_, err := fmt.Fprintf(l.file, "%d\t%d\t%s\t%s\n", seq, e.Kind, e.Key, e.Value)
 			if err != nil {
-				errs <- err
+				errs <- fmt.Errorf("failed to process event: [%d-%d-%s]: %w", seq, e.Kind, e.Key, err)
 				return
 			}
 		}
@@ -64,9 +66,32 @@ func (l *FileTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 
 		for scanner.Scan() {
 			line := scanner.Text()
-			if _, err := fmt.Sscanf(line, "%d\t%d\t%s\t%s", &e.Sequence, &e.Kind, &e.Key, &e.Value); err != nil {
-				outErr <- fmt.Errorf("error parsing event: %w", err)
+
+			fields := strings.Split(line, "\t")
+			if len(fields) < 3 {
+				outErr <- fmt.Errorf("error parsing event: expected at least 3 tab-separated fields, got %d", len(fields))
 				return
+			}
+
+			seq, err := strconv.ParseUint(fields[0], 10, 64)
+			if err != nil {
+				outErr <- fmt.Errorf("error parsing event: invalid sequence %q: %w", fields[0], err)
+				return
+			}
+			e.Sequence = seq
+
+			kind, err := strconv.ParseUint(fields[1], 10, 8)
+			if err != nil {
+				outErr <- fmt.Errorf("error parsing event: invalid event kind %q: %w", fields[1], err)
+				return
+			}
+			e.Kind = EventKind(kind)
+
+			e.Key = fields[2]
+			if len(fields) >= 4 {
+				e.Value = fields[3]
+			} else {
+				e.Value = ""
 			}
 
 			// atomically compare and swap the value for our latest sequence
