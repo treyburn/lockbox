@@ -573,6 +573,85 @@ func TestFileTransactionLogger_ReadEvents_WithValues(t *testing.T) {
 	}
 }
 
+// TestParseEvent tests the parseEvent helper function
+func TestParseEvent(t *testing.T) {
+	tests := []struct {
+		name      string
+		line      string
+		expected  Event
+		expectErr string
+	}{
+		{
+			name:     "put event",
+			line:     "1\t2\tkey1\tvalue1",
+			expected: Event{Sequence: 1, Kind: EventPut, Key: "key1", Value: "value1"},
+		},
+		{
+			name:     "delete event with empty value",
+			line:     "2\t1\tkey2\t",
+			expected: Event{Sequence: 2, Kind: EventDelete, Key: "key2", Value: ""},
+		},
+		{
+			name:     "delete event with no value field",
+			line:     "3\t1\tkey3",
+			expected: Event{Sequence: 3, Kind: EventDelete, Key: "key3", Value: ""},
+		},
+		{
+			name:     "large sequence number",
+			line:     "999999\t2\tkey\tval",
+			expected: Event{Sequence: 999999, Kind: EventPut, Key: "key", Value: "val"},
+		},
+		{
+			name:     "numeric value",
+			line:     "1\t2\tkey\t12345",
+			expected: Event{Sequence: 1, Kind: EventPut, Key: "key", Value: "12345"},
+		},
+		{
+			name:      "too few fields",
+			line:      "1\t2",
+			expectErr: "expected at least 3 tab-separated fields",
+		},
+		{
+			name:      "empty line",
+			line:      "",
+			expectErr: "expected at least 3 tab-separated fields",
+		},
+		{
+			name:      "invalid sequence",
+			line:      "abc\t2\tkey\tvalue",
+			expectErr: "invalid sequence",
+		},
+		{
+			name:      "negative sequence",
+			line:      "-1\t2\tkey\tvalue",
+			expectErr: "invalid sequence",
+		},
+		{
+			name:      "invalid event kind",
+			line:      "1\txyz\tkey\tvalue",
+			expectErr: "invalid event kind",
+		},
+		{
+			name:      "event kind overflow",
+			line:      "1\t999\tkey\tvalue",
+			expectErr: "invalid event kind",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			event, err := parseEvent(tc.line)
+			if tc.expectErr != "" {
+				require.Error(t, err)
+				assert.ErrorContains(t, err, tc.expectErr)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tc.expected, event)
+			}
+		})
+	}
+}
+
 // TestFileTransactionLogger_WriteReadRoundTrip tests that events written via Run can be read back
 // by ReadEvents. This is the highest-value test for the file logger since it validates the
 // contract between the write and read halves.
