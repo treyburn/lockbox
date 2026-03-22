@@ -31,7 +31,7 @@ func NewPostgresTransactionLogger(conf PostgresDBParams) (*PostgresTransactionLo
 		return nil, fmt.Errorf("failed to open db handle: %w", err)
 	}
 
-	if err := db.Ping(); err != nil {
+	if err = db.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to open db connection: %w", err)
 	}
 
@@ -43,7 +43,7 @@ func NewPostgresTransactionLogger(conf PostgresDBParams) (*PostgresTransactionLo
 	}
 
 	if !exists {
-		if err := p.createTable(); err != nil {
+		if err = p.createTable(); err != nil {
 			return nil, fmt.Errorf("failed to create table: %w", err)
 		}
 	}
