@@ -1,6 +1,7 @@
 package http
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -23,6 +24,20 @@ func (m *mockTransactionLog) WritePut(key, value string) {
 
 func (m *mockTransactionLog) WriteDelete(key string) {
 	m.Called(key)
+}
+
+type errorStore struct {
+	err error
+}
+
+func (e *errorStore) Get(_ string) (string, error) { return "", e.err }
+func (e *errorStore) Put(_, _ string) error        { return e.err }
+func (e *errorStore) Delete(_ string) error        { return e.err }
+
+type errReader struct{}
+
+func (errReader) Read(_ []byte) (int, error) {
+	return 0, errors.New("read error")
 }
 
 func TestService_GetByKey(t *testing.T) {
@@ -52,6 +67,18 @@ func TestService_GetByKey(t *testing.T) {
 		svc.GetByKey(response, request)
 		assert.Equal(t, http.StatusNotFound, response.Code)
 		assert.Empty(t, response.Body)
+	})
+
+	t.Run("internal error", func(t *testing.T) {
+		s := &errorStore{err: errors.New("db error")}
+		svc := NewService(s, nil)
+
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodGet, "/v1/some-key", nil)
+		request = mux.SetURLVars(request, map[string]string{"key": "some-key"})
+
+		svc.GetByKey(response, request)
+		assert.Equal(t, http.StatusInternalServerError, response.Code)
 	})
 }
 
@@ -89,6 +116,30 @@ func TestService_PutForKey(t *testing.T) {
 		assert.Equal(t, "some-new-value", internalStore["some-key"])
 		txLog.AssertExpectations(t)
 	})
+
+	t.Run("read body error", func(t *testing.T) {
+		cache := store.NewInMemoryStore()
+		svc := NewService(cache, nil)
+
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodPut, "/v1/some-key", errReader{})
+		request = mux.SetURLVars(request, map[string]string{"key": "some-key"})
+
+		svc.PutForKey(response, request)
+		assert.Equal(t, http.StatusInternalServerError, response.Code)
+	})
+
+	t.Run("store error", func(t *testing.T) {
+		s := &errorStore{err: errors.New("db error")}
+		svc := NewService(s, nil)
+
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodPut, "/v1/some-key", strings.NewReader("some-value"))
+		request = mux.SetURLVars(request, map[string]string{"key": "some-key"})
+
+		svc.PutForKey(response, request)
+		assert.Equal(t, http.StatusInternalServerError, response.Code)
+	})
 }
 
 func TestService_DeleteForKey(t *testing.T) {
@@ -123,5 +174,17 @@ func TestService_DeleteForKey(t *testing.T) {
 		assert.Equal(t, http.StatusAccepted, response.Code)
 		assert.Empty(t, internalStore)
 		txLog.AssertExpectations(t)
+	})
+
+	t.Run("store error", func(t *testing.T) {
+		s := &errorStore{err: errors.New("db error")}
+		svc := NewService(s, nil)
+
+		response := httptest.NewRecorder()
+		request := httptest.NewRequest(http.MethodDelete, "/v1/some-key", nil)
+		request = mux.SetURLVars(request, map[string]string{"key": "some-key"})
+
+		svc.DeleteKey(response, request)
+		assert.Equal(t, http.StatusInternalServerError, response.Code)
 	})
 }
