@@ -53,45 +53,49 @@ func (l *FileTransactionLogger) Run() {
 	}()
 }
 
+func parseEvent(line string) (Event, error) {
+	fields := strings.Split(line, "\t")
+	if len(fields) < 3 {
+		return Event{}, fmt.Errorf("error parsing event: expected at least 3 tab-separated fields, got %d", len(fields))
+	}
+
+	seq, err := strconv.ParseUint(fields[0], 10, 64)
+	if err != nil {
+		return Event{}, fmt.Errorf("error parsing event: invalid sequence %q: %w", fields[0], err)
+	}
+
+	kind, err := strconv.ParseUint(fields[1], 10, 8)
+	if err != nil {
+		return Event{}, fmt.Errorf("error parsing event: invalid event kind %q: %w", fields[1], err)
+	}
+
+	e := Event{
+		Sequence: seq,
+		Kind:     EventKind(kind),
+		Key:      fields[2],
+	}
+
+	if len(fields) >= 4 {
+		e.Value = fields[3]
+	}
+
+	return e, nil
+}
+
 func (l *FileTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 	scanner := bufio.NewScanner(l.file)
 	outEvent := make(chan Event)
 	outErr := make(chan error, 1)
 
 	go func() {
-		var e Event
-
 		defer close(outEvent)
 		defer close(outErr)
 
 		for scanner.Scan() {
-			line := scanner.Text()
-
-			fields := strings.Split(line, "\t")
-			if len(fields) < 3 {
-				outErr <- fmt.Errorf("error parsing event: expected at least 3 tab-separated fields, got %d", len(fields))
-				return
-			}
-
-			seq, err := strconv.ParseUint(fields[0], 10, 64)
+			e, err := parseEvent(scanner.Text())
 			if err != nil {
-				outErr <- fmt.Errorf("error parsing event: invalid sequence %q: %w", fields[0], err)
+				outErr <- err
 				return
-			}
-			e.Sequence = seq
-
-			kind, err := strconv.ParseUint(fields[1], 10, 8)
-			if err != nil {
-				outErr <- fmt.Errorf("error parsing event: invalid event kind %q: %w", fields[1], err)
-				return
-			}
-			e.Kind = EventKind(kind)
-
-			e.Key = fields[2]
-			if len(fields) >= 4 {
-				e.Value = fields[3]
-			} else {
-				e.Value = ""
 			}
 
 			// atomically compare and swap the value for our latest sequence
