@@ -68,23 +68,22 @@ func (p *PostgresTransactionLogger) Run() {
 	p.events = events
 	errs := make(chan error, 1)
 	p.errors = errs
-	done := make(chan struct{})
-	p.done = done
+	p.done = make(chan struct{})
 
 	const insertQuery = `INSERT INTO transactions
 					(event_type, key, value)
 					VALUES ($1, $2, $3)`
 
 	go func() {
-		for {
-			select {
-			case <-p.done:
-				close(errs)
-				return
-			case e := <-events:
-				_, err := p.db.Exec(insertQuery, e.Kind, e.Key, e.Value)
-				if err != nil {
-					errs <- fmt.Errorf("failed to write transaction: %w", err)
+		defer close(p.done)
+		defer close(errs)
+		for e := range events {
+			_, err := p.db.Exec(insertQuery, e.Kind, e.Key, e.Value)
+			if err != nil {
+				select {
+				case errs <- fmt.Errorf("failed to write transaction: %w", err):
+				default:
+					slog.Warn("dropping transaction error, error channel full", slog.String("error", err.Error()))
 				}
 			}
 		}
@@ -118,6 +117,7 @@ func (p *PostgresTransactionLogger) ReadEvents() (<-chan Event, <-chan error) {
 			err = rows.Scan(&e.Sequence, &e.Kind, &e.Key, &e.Value)
 			if err != nil {
 				outErr <- fmt.Errorf("failed to read row: %w", err)
+				return
 			}
 			outEvent <- e
 		}
@@ -175,7 +175,7 @@ func (p *PostgresTransactionLogger) createTable() error {
 }
 
 func (p *PostgresTransactionLogger) Close() error {
-	p.done <- struct{}{}
-	// close(p.events) TODO - figure out where to safely close this
+	close(p.events)
+	<-p.done // wait for goroutine to drain remaining events
 	return p.db.Close()
 }
