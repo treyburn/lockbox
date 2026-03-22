@@ -8,6 +8,9 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// compile time assertion that PostgresTransactionLogger is a TransactionManager
+var _ TransactionManager = (*PostgresTransactionLogger)(nil)
+
 type PostgresTransactionLogger struct {
 	events chan<- Event
 	errors <-chan error
