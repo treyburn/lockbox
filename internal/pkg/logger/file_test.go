@@ -3,13 +3,13 @@ package logger
 import (
 	"bytes"
 	"fmt"
-	"strings"
 	"sync"
 	"testing"
 	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // mockReadWriteCloser is a mock implementation of an io.ReadWriterCloser for testing
@@ -58,18 +58,11 @@ func TestNewFileTransactionLogger(t *testing.T) {
 	mock := newMockReadWriteCloser("")
 	logger := NewFileTransactionLogger(mock)
 
-	if logger == nil {
-		t.Fatal("Expected non-nil logger")
-	}
-
-	if logger.file != mock {
-		t.Error("Expected file handle to be set correctly")
-	}
+	require.NotNil(t, logger, "Expected non-nil logger")
+	assert.Equal(t, mock, logger.file, "Expected file handle to be set directly")
 
 	last := logger.lastSequence.Load()
-	if last != 0 {
-		t.Errorf("Expected lastSequence to be 0, got %d", last)
-	}
+	assert.Equal(t, uint64(0), last)
 }
 
 // TestFileTransactionLogger_Run tests the Run method initialization
@@ -77,26 +70,16 @@ func TestFileTransactionLogger_Run(t *testing.T) {
 	mock := newMockReadWriteCloser("")
 	logger := NewFileTransactionLogger(mock)
 
-	if logger.events != nil {
-		t.Error("Expected events channel to be nil before Run()")
-	}
-
-	if logger.errors != nil {
-		t.Error("Expected errors channel to be nil before Run()")
-	}
+	assert.Nil(t, logger.events, "Expected events channel to be nil before Run()")
+	assert.Nil(t, logger.errors, "Expected errors channel to be nil before Run()")
 
 	logger.Run()
 
 	// Give goroutine time to start
 	time.Sleep(10 * time.Millisecond)
 
-	if logger.events == nil {
-		t.Error("Expected events channel to be initialized after Run()")
-	}
-
-	if logger.errors == nil {
-		t.Error("Expected errors channel to be initialized after Run()")
-	}
+	assert.NotNil(t, logger.events, "Expected events channel to be initialized after Run()")
+	assert.NotNil(t, logger.errors, "Expected errors channel to be initialized after Run()")
 }
 
 // TestFileTransactionLogger_WritePut tests writing PUT events
@@ -122,18 +105,14 @@ func TestFileTransactionLogger_WritePut(t *testing.T) {
 		}
 
 		for _, expected := range expectedLines {
-			if !strings.Contains(output, expected) {
-				t.Errorf("Expected output to contain %q, got: %s", expected, output)
-			}
+			assert.Contains(t, output, expected)
 		}
 
 		last := logger.lastSequence.Load()
-		if last != 2 {
-			t.Errorf("Expected lastSequence to be 2, got %d", last)
-		}
+		assert.Equal(t, uint64(2), last)
 
 		err := logger.Close()
-		assert.Nil(t, err)
+		assert.NoError(t, err)
 		synctest.Wait()
 	})
 }
@@ -160,15 +139,10 @@ func TestFileTransactionLogger_WriteDelete(t *testing.T) {
 	}
 
 	for _, expected := range expectedLines {
-		if !strings.Contains(output, expected) {
-			t.Errorf("Expected output to contain %q, got: %s", expected, output)
-		}
+		assert.Contains(t, output, expected)
 	}
 
-	last := logger.lastSequence.Load()
-	if last != 2 {
-		t.Errorf("Expected lastSequence to be 2, got %d", last)
-	}
+	assert.Equal(t, uint64(2), logger.lastSequence.Load())
 }
 
 // TestFileTransactionLogger_MixedOperations tests mixed PUT and DELETE operations
@@ -195,15 +169,10 @@ func TestFileTransactionLogger_MixedOperations(t *testing.T) {
 	}
 
 	for _, expected := range expectedLines {
-		if !strings.Contains(output, expected) {
-			t.Errorf("Expected output to contain %q, got: %s", expected, output)
-		}
+		assert.Contains(t, output, expected)
 	}
 
-	last := logger.lastSequence.Load()
-	if last != 3 {
-		t.Errorf("Expected lastSequence to be 3, got %d", last)
-	}
+	assert.Equal(t, uint64(3), logger.lastSequence.Load())
 }
 
 // TestFileTransactionLogger_Err tests the Err() method
@@ -213,9 +182,7 @@ func TestFileTransactionLogger_Err(t *testing.T) {
 	logger.Run()
 
 	errChan := logger.Err()
-	if errChan == nil {
-		t.Fatal("Expected non-nil error channel")
-	}
+	require.NotNil(t, errChan, "Expected non-nil error channel")
 
 	// Verify channel is initially empty
 	select {
@@ -254,16 +221,14 @@ func TestFileTransactionLogger_ReadEvents_EmptyFile(t *testing.T) {
 	// Check for errors - only if error channel has something
 	select {
 	case err, ok := <-errChan:
-		if ok && err != nil {
-			t.Errorf("Expected no errors, got: %v", err)
+		if ok {
+			assert.NoError(t, err)
 		}
 	default:
 		// Expected - no errors
 	}
 
-	if len(events) != 0 {
-		t.Errorf("Expected 0 events from empty file, got %d", len(events))
-	}
+	assert.Empty(t, events, "Expected 0 events from empty file")
 }
 
 // TestFileTransactionLogger_ReadEvents_ValidData tests reading valid events
@@ -296,8 +261,8 @@ func TestFileTransactionLogger_ReadEvents_ValidData(t *testing.T) {
 	// Check for errors - only if error channel has something
 	select {
 	case err, ok := <-errChan:
-		if ok && err != nil {
-			t.Errorf("Expected no errors, got: %v", err)
+		if ok {
+			assert.NoError(t, err)
 		}
 	default:
 		// Expected - no errors
@@ -309,29 +274,16 @@ func TestFileTransactionLogger_ReadEvents_ValidData(t *testing.T) {
 		{Sequence: 3, Kind: EventPut, Key: "key3", Value: "value3"},
 	}
 
-	if len(events) != len(expectedEvents) {
-		t.Fatalf("Expected %d events, got %d", len(expectedEvents), len(events))
-	}
+	require.Len(t, events, len(expectedEvents))
 
 	for i, expected := range expectedEvents {
-		if events[i].Sequence != expected.Sequence {
-			t.Errorf("Event %d: expected sequence %d, got %d", i, expected.Sequence, events[i].Sequence)
-		}
-		if events[i].Kind != expected.Kind {
-			t.Errorf("Event %d: expected kind %d, got %d", i, expected.Kind, events[i].Kind)
-		}
-		if events[i].Key != expected.Key {
-			t.Errorf("Event %d: expected key %q, got %q", i, expected.Key, events[i].Key)
-		}
-		if events[i].Value != expected.Value {
-			t.Errorf("Event %d: expected value %q, got %q", i, expected.Value, events[i].Value)
-		}
+		assert.Equal(t, expected.Sequence, events[i].Sequence, "Event %d: sequence mismatch", i)
+		assert.Equal(t, expected.Kind, events[i].Kind, "Event %d: kind mismatch", i)
+		assert.Equal(t, expected.Key, events[i].Key, "Event %d: key mismatch", i)
+		assert.Equal(t, expected.Value, events[i].Value, "Event %d: value mismatch", i)
 	}
 
-	last := logger.lastSequence.Load()
-	if last != 3 {
-		t.Errorf("Expected lastSequence to be 3, got %d", last)
-	}
+	assert.Equal(t, uint64(3), logger.lastSequence.Load())
 }
 
 // TestFileTransactionLogger_ReadEvents_InvalidFormat tests reading with invalid format
@@ -363,12 +315,8 @@ func TestFileTransactionLogger_ReadEvents_InvalidFormat(t *testing.T) {
 	// Check for error
 	select {
 	case err := <-errChan:
-		if err == nil {
-			t.Error("Expected error for invalid format")
-		}
-		if !strings.Contains(err.Error(), "error parsing event") {
-			t.Errorf("Expected 'error parsing event' in error message, got: %v", err)
-		}
+		require.Error(t, err, "Expected error for invalid format")
+		assert.ErrorContains(t, err, "error parsing event")
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("Expected error but got none")
 	}
@@ -401,19 +349,13 @@ func TestFileTransactionLogger_ReadEvents_OutOfSequence(t *testing.T) {
 	}
 
 	// Should only get the first event before error
-	if len(events) != 1 {
-		t.Errorf("Expected 1 event before error, got %d", len(events))
-	}
+	assert.Len(t, events, 1, "Expected 1 event before error")
 
 	// Check for error
 	select {
 	case err := <-errChan:
-		if err == nil {
-			t.Error("Expected error for out-of-sequence events")
-		}
-		if !strings.Contains(err.Error(), "transaction sequence out of sequence") {
-			t.Errorf("Expected 'transaction sequence out of sequence' in error message, got: %v", err)
-		}
+		require.Error(t, err, "Expected error for out-of-sequence events")
+		assert.ErrorContains(t, err, "transaction sequence out of sequence")
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("Expected error but got none")
 	}
@@ -425,10 +367,7 @@ func TestFileTransactionLogger_ReadEvents_UpdatesLastSequence(t *testing.T) {
 	mock := newMockReadWriteCloser(data)
 	logger := NewFileTransactionLogger(mock)
 
-	last := logger.lastSequence.Load()
-	if last != 0 {
-		t.Errorf("Expected initial lastSequence to be 0, got %d", last)
-	}
+	assert.Equal(t, uint64(0), logger.lastSequence.Load(), "Expected initial lastSequence to be 0")
 
 	eventChan, errChan := logger.ReadEvents()
 
@@ -450,17 +389,14 @@ func TestFileTransactionLogger_ReadEvents_UpdatesLastSequence(t *testing.T) {
 	// Check for errors - only if error channel has something
 	select {
 	case err, ok := <-errChan:
-		if ok && err != nil {
-			t.Errorf("Expected no errors, got: %v", err)
+		if ok {
+			assert.NoError(t, err)
 		}
 	default:
 		// Expected - no errors
 	}
 
-	last = logger.lastSequence.Load()
-	if last != 5 {
-		t.Errorf("Expected lastSequence to be 5 after reading, got %d", last)
-	}
+	assert.Equal(t, uint64(5), logger.lastSequence.Load(), "Expected lastSequence to be 5 after reading")
 }
 
 // TestFileTransactionLogger_SequenceIncrement tests that sequence numbers increment correctly
@@ -480,18 +416,13 @@ func TestFileTransactionLogger_SequenceIncrement(t *testing.T) {
 	// Give time for writes to complete
 	time.Sleep(50 * time.Millisecond)
 
-	last := logger.lastSequence.Load()
-	if last != 10 {
-		t.Errorf("Expected lastSequence to be 10, got %d", last)
-	}
+	assert.Equal(t, uint64(10), logger.lastSequence.Load())
 
 	// Verify all sequences are in the output
 	output := mock.String()
 	for i := 1; i <= 10; i++ {
 		expected := fmt.Sprintf("%d\t2\tkey%d\tvalue%d", i, i, i)
-		if !strings.Contains(output, expected) {
-			t.Errorf("Expected output to contain %q", expected)
-		}
+		assert.Contains(t, output, expected)
 	}
 }
 
@@ -522,12 +453,8 @@ func TestFileTransactionLogger_WriteError(t *testing.T) {
 	// Wait for error to be sent
 	select {
 	case err := <-logger.Err():
-		if err == nil {
-			t.Error("Expected error from failing writer")
-		}
-		if !strings.Contains(err.Error(), "simulated write error") {
-			t.Errorf("Expected 'simulated write error' in error message, got: %v", err)
-		}
+		require.Error(t, err, "Expected error from failing writer")
+		assert.ErrorContains(t, err, "simulated write error")
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("Expected error but got none")
 	}
@@ -593,26 +520,21 @@ func TestFileTransactionLogger_ReadEvents_WithValues(t *testing.T) {
 				if ok && err != nil {
 					gotError = true
 					if !tc.expectError {
-						t.Errorf("Expected no errors, got: %v", err)
+						assert.NoError(t, err)
 					}
 				}
 			default:
 				// No error
 			}
 
-			if tc.expectError && !gotError {
-				t.Error("Expected an error but got none")
-			}
-
-			if !tc.expectError && len(events) != len(tc.expected) {
-				t.Fatalf("Expected %d events, got %d", len(tc.expected), len(events))
+			if tc.expectError {
+				assert.True(t, gotError, "Expected an error but got none")
 			}
 
 			if !tc.expectError {
+				require.Len(t, events, len(tc.expected))
 				for i, expected := range tc.expected {
-					if events[i] != expected {
-						t.Errorf("Event %d mismatch: expected %+v, got %+v", i, expected, events[i])
-					}
+					assert.Equal(t, expected, events[i], "Event %d mismatch", i)
 				}
 			}
 		})

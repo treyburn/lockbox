@@ -3,7 +3,6 @@ package logger
 import (
 	"database/sql"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -72,26 +71,16 @@ func TestPostgresTransactionLogger_Run(t *testing.T) {
 
 	logger := &PostgresTransactionLogger{db: db}
 
-	if logger.events != nil {
-		t.Error("Expected events channel to be nil before Run()")
-	}
-
-	if logger.errors != nil {
-		t.Error("Expected errors channel to be nil before Run()")
-	}
+	assert.Nil(t, logger.events, "Expected events channel to be nil before Run()")
+	assert.Nil(t, logger.errors, "Expected errors channel to be nil before Run()")
 
 	logger.Run()
 
 	// Give goroutine time to start
 	time.Sleep(10 * time.Millisecond)
 
-	if logger.events == nil {
-		t.Error("Expected events channel to be initialized after Run()")
-	}
-
-	if logger.errors == nil {
-		t.Error("Expected errors channel to be initialized after Run()")
-	}
+	assert.NotNil(t, logger.events, "Expected events channel to be initialized after Run()")
+	assert.NotNil(t, logger.errors, "Expected errors channel to be initialized after Run()")
 }
 
 // TestPostgresTransactionLogger_WritePut tests writing PUT events
@@ -219,9 +208,7 @@ func TestPostgresTransactionLogger_Err(t *testing.T) {
 	logger.Run()
 
 	errChan := logger.Err()
-	if errChan == nil {
-		t.Fatal("Expected non-nil error channel")
-	}
+	require.NotNil(t, errChan, "Expected non-nil error channel")
 
 	// Verify channel is initially empty
 	select {
@@ -267,16 +254,14 @@ func TestPostgresTransactionLogger_ReadEvents_EmptyTable(t *testing.T) {
 	// Check for errors
 	select {
 	case err, ok := <-errChan:
-		if ok && err != nil {
-			t.Errorf("Expected no errors, got: %v", err)
+		if ok {
+			assert.NoError(t, err)
 		}
 	default:
 		// Expected - no errors
 	}
 
-	if len(events) != 0 {
-		t.Errorf("Expected 0 events from empty table, got %d", len(events))
-	}
+	assert.Empty(t, events, "Expected 0 events from empty table")
 
 	err = mock.ExpectationsWereMet()
 	assert.NoError(t, err)
@@ -320,8 +305,8 @@ func TestPostgresTransactionLogger_ReadEvents_ValidData(t *testing.T) {
 	// Check for errors
 	select {
 	case err, ok := <-errChan:
-		if ok && err != nil {
-			t.Errorf("Expected no errors, got: %v", err)
+		if ok {
+			assert.NoError(t, err)
 		}
 	default:
 		// Expected - no errors
@@ -333,23 +318,13 @@ func TestPostgresTransactionLogger_ReadEvents_ValidData(t *testing.T) {
 		{Sequence: 3, Kind: EventPut, Key: "key3", Value: "value3"},
 	}
 
-	if len(events) != len(expectedEvents) {
-		t.Fatalf("Expected %d events, got %d", len(expectedEvents), len(events))
-	}
+	require.Len(t, events, len(expectedEvents))
 
 	for i, expected := range expectedEvents {
-		if events[i].Sequence != expected.Sequence {
-			t.Errorf("Event %d: expected sequence %d, got %d", i, expected.Sequence, events[i].Sequence)
-		}
-		if events[i].Kind != expected.Kind {
-			t.Errorf("Event %d: expected kind %d, got %d", i, expected.Kind, events[i].Kind)
-		}
-		if events[i].Key != expected.Key {
-			t.Errorf("Event %d: expected key %q, got %q", i, expected.Key, events[i].Key)
-		}
-		if events[i].Value != expected.Value {
-			t.Errorf("Event %d: expected value %q, got %q", i, expected.Value, events[i].Value)
-		}
+		assert.Equal(t, expected.Sequence, events[i].Sequence, "Event %d: sequence mismatch", i)
+		assert.Equal(t, expected.Kind, events[i].Kind, "Event %d: kind mismatch", i)
+		assert.Equal(t, expected.Key, events[i].Key, "Event %d: key mismatch", i)
+		assert.Equal(t, expected.Value, events[i].Value, "Event %d: value mismatch", i)
 	}
 
 	err = mock.ExpectationsWereMet()
@@ -391,12 +366,8 @@ func TestPostgresTransactionLogger_ReadEvents_QueryError(t *testing.T) {
 	// Check for error
 	select {
 	case err := <-errChan:
-		if err == nil {
-			t.Error("Expected error for query failure")
-		}
-		if !strings.Contains(err.Error(), "failed to read transactions") {
-			t.Errorf("Expected 'failed to read transactions' in error message, got: %v", err)
-		}
+		require.Error(t, err, "Expected error for query failure")
+		assert.ErrorContains(t, err, "failed to read transactions")
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("Expected error but got none")
 	}
@@ -441,12 +412,8 @@ func TestPostgresTransactionLogger_ReadEvents_ScanError(t *testing.T) {
 	// Check for error
 	select {
 	case err := <-errChan:
-		if err == nil {
-			t.Error("Expected error for scan failure")
-		}
-		if !strings.Contains(err.Error(), "failed to read row") {
-			t.Errorf("Expected 'failed to read row' in error message, got: %v", err)
-		}
+		require.Error(t, err, "Expected error for scan failure")
+		assert.ErrorContains(t, err, "failed to read row")
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("Expected error but got none")
 	}
@@ -477,12 +444,8 @@ func TestPostgresTransactionLogger_WriteError(t *testing.T) {
 	// Wait for error to be sent
 	select {
 	case err := <-logger.Err():
-		if err == nil {
-			t.Error("Expected error from failing write")
-		}
-		if !strings.Contains(err.Error(), "simulated write error") {
-			t.Errorf("Expected 'simulated write error' in error message, got: %v", err)
-		}
+		require.Error(t, err, "Expected error from failing write")
+		assert.ErrorContains(t, err, "simulated write error")
 	case <-time.After(100 * time.Millisecond):
 		t.Fatal("Expected error but got none")
 	}
