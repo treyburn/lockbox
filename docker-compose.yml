@@ -28,6 +28,8 @@ services:
         condition: service_healthy
       create-log:
         condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.api.rule=Host(`localhost`)"
@@ -72,6 +74,23 @@ services:
           echo "transaction log already exists"
         fi
       '
+
+  # postgres database for transaction logging
+  postgres:
+    image: postgres:17-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: lockbox
+      POSTGRES_PASSWORD: lockbox
+      POSTGRES_DB: lockbox
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lockbox -d lockbox"]
+      interval: 2s
+      timeout: 1s
+      retries: 5
 
   # load balancing and TLS termination
   traefik:
@@ -142,3 +161,4 @@ volumes:
   go-build-cache:
   certs:  # shared volume for certificates
   sync: # shared volume for transaction logger file
+  postgres-data: # persistent volume for postgres data
