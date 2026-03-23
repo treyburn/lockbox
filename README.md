@@ -101,7 +101,8 @@ Various items for cleanup.
   - [ ] Improve unit tests
     - [x] Better coverage for file logger 
     - [x] Better coverage for PG logger
-    - [ ] Better coverage for service layer
+    - [x] Better coverage for service layer
+    - [ ] main pkg unit tests
   - [ ] Add integration testing
     - [ ] File logger
     - [ ] Postgres logger
