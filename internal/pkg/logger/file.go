@@ -9,8 +9,8 @@ import (
 	"sync/atomic"
 )
 
-// compile time assertion that FileTransactionLogger is a TransactionLog
-var _ TransactionLog = (*FileTransactionLogger)(nil)
+// compile time assertion that FileTransactionLogger is a TransactionManager
+var _ TransactionManager = (*FileTransactionLogger)(nil)
 
 func NewFileTransactionLogger(fileHandle io.ReadWriteCloser) *FileTransactionLogger {
 	return &FileTransactionLogger{file: fileHandle}

@@ -3,9 +3,13 @@ package logger
 type TransactionLog interface {
 	WritePut(key, value string)
 	WriteDelete(key string)
-	Err() <-chan error
+}
+
+type TransactionManager interface {
+	TransactionLog
 
 	Run()
 	ReadEvents() (<-chan Event, <-chan error)
+	Err() <-chan error
 	Close() error
 }
